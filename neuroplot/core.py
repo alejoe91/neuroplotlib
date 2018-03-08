@@ -7,14 +7,11 @@ from os.path import join
 import numpy as np
 import math
 
-# import matplotlib as 'Agg' to avoid interference with neuron
 import matplotlib
-# matplotlib.use('Agg')
 import pylab as plt
-# import matplotlib.pylab as plt
 
 from mpl_toolkits.mplot3d import Axes3D
-import LFPy
+from mpl_toolkits.mplot3d import art3d
 import MEAutility as MEA
 from matplotlib.patches import Ellipse
 import matplotlib.animation as animation
@@ -23,9 +20,93 @@ from matplotlib import colors as mpl_colors
 import mpl_toolkits.mplot3d as a3
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-# plt.ion()
 
 # TODO update plots to cope with different MEAs
+
+
+def rotation_matrix(d):
+    """
+    Calculates a rotation matrix given a vector d. The direction of d
+    corresponds to the rotation axis. The length of d corresponds to
+    the sin of the angle of rotation.
+
+    Variant of: http://mail.scipy.org/pipermail/numpy-discussion/2009-March/040806.html
+    """
+    sin_angle = np.linalg.norm(d)
+
+    if sin_angle == 0:
+        return np.identity(3)
+
+    d /= sin_angle
+    sin_angle = np.linalg.norm(d)
+
+    eye = np.eye(3)
+    ddt = np.outer(d, d)
+    skew = np.array([[    0,  d[2],  -d[1]],
+                  [-d[2],     0,  d[0]],
+                  [d[1], -d[0],    0]], dtype=np.float64)
+
+    M = ddt + np.sqrt(1 - sin_angle**2) * (eye - ddt) + sin_angle * skew
+    return M
+
+def make_patch_3d(pathpatch, rot_axis, angle, z=0):
+    """
+    Transforms a 2D Patch to a 3D patch using the given normal vector.
+
+    The patch is projected into they XY plane, rotated about the origin
+    and finally translated by z.
+    """
+    path = pathpatch.get_path() #Get the path and the associated transform
+    trans = pathpatch.get_patch_transform()
+
+    path = trans.transform_path(path) #Apply the transform
+
+    pathpatch.__class__ = art3d.PathPatch3D #Change the class
+    pathpatch._code3d = path.codes #Copy the codes
+    pathpatch._facecolor3d = pathpatch.get_facecolor #Get the face color
+
+    verts = path.vertices #Get the vertices in 2D
+
+    M = rotation_matrix2(rot_axis, angle) #Get the rotation matrix
+
+    pathpatch._segment3d = np.array([np.dot(M, (x, y, 0)) + (0, 0, z) for x, y in verts])
+
+def pathpatch_2d_to_3d(pathpatch, z = 0, normal = 'z'):
+    """
+    Transforms a 2D Patch to a 3D patch using the given normal vector.
+
+    The patch is projected into they XY plane, rotated about the origin
+    and finally translated by z.
+    """
+    if type(normal) is str: #Translate strings to normal vectors
+        index = "xyz".index(normal)
+        normal = np.roll((1.0,0,0), index)
+
+    normal /= np.linalg.norm(normal) #Make sure the vector is normalised
+
+    path = pathpatch.get_path() #Get the path and the associated transform
+    trans = pathpatch.get_patch_transform()
+
+    path = trans.transform_path(path) #Apply the transform
+
+    pathpatch.__class__ = art3d.PathPatch3D #Change the class
+    pathpatch._code3d = path.codes #Copy the codes
+    pathpatch._facecolor3d = pathpatch.get_facecolor #Get the face color
+
+    verts = path.vertices #Get the vertices in 2D
+    raise Exception()
+
+    d = np.cross(normal, (0, 0, 1)) #Obtain the rotation vector
+    M = rotation_matrix(d) #Get the rotation matrix
+
+    pathpatch._segment3d = np.array([np.dot(M, (x, y, 0)) + (0, 0, z) for x, y in verts])
+
+
+def pathpatch_translate(pathpatch, delta):
+    """
+    Translates the 3D pathpatch by the amount delta.
+    """
+    pathpatch._segment3d += delta
 
 
 def _rotation_matrix(axis, theta):
@@ -35,7 +116,23 @@ def _rotation_matrix(axis, theta):
     """
     axis = np.asarray(axis)
     theta = np.asarray(theta)
-    axis /= np.linalg.norm(axis)
+    axis = axis / np.linalg.norm(axis)
+    a = math.cos(theta / 2.0)
+    b, c, d = -axis * math.sin(theta / 2.0)
+    aa, bb, cc, dd = a * a, b * b, c * c, d * d
+    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+    return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                     [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                     [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
+
+def rotation_matrix2(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    theta = np.asarray(theta)
+    axis = axis / np.linalg.norm(axis)
     a = math.cos(theta / 2.0)
     b, c, d = -axis * math.sin(theta / 2.0)
     aa, bb, cc, dd = a * a, b * b, c * c, d * d
@@ -45,12 +142,22 @@ def _rotation_matrix(axis, theta):
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
 
-def _cylinder(pos_start,
-              direction,
-              length,
-              radius,
-              n_points,
-              flatten_along_zaxis=False):
+def _cylinder(pos_start, direction, length, radius, n_points, flatten_along_zaxis=False):
+    '''
+
+    Parameters
+    ----------
+    pos_start
+    direction
+    length
+    radius
+    n_points
+    flatten_along_zaxis
+
+    Returns
+    -------
+
+    '''
     alpha = np.array([0., length])
 
     theta_ring = np.linspace(0., np.pi * 2., n_points)
@@ -91,9 +198,6 @@ def _cylinder(pos_start,
         else:
             theta = np.pi - np.arctan(d[1] / d[0])
 
-
-    # print 'theta: ', np.rad2deg(theta)
-
     rho = np.sqrt((d[0] ** 2 + d[1] ** 2))
 
     if rho == 0:
@@ -123,16 +227,27 @@ def _cylinder(pos_start,
     return x, y, z
 
 
-def get_polygons_for_cylinder(pos_start,
-                              direction,
-                              length,
-                              radius,
-                              n_points,
-                              facecolor='b',
-                              edgecolor='k',
-                              alpha=1.,
-                              lw = 0.,
-                              flatten_along_zaxis=False):
+def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, facecolor='b', edgecolor='k', alpha=1.,
+                              lw = 0., flatten_along_zaxis=False):
+    '''
+
+    Parameters
+    ----------
+    pos_start
+    direction
+    length
+    radius
+    n_points
+    facecolor
+    edgecolor
+    alpha
+    lw
+    flatten_along_zaxis
+
+    Returns
+    -------
+
+    '''
     x, y, z = _cylinder(pos_start,
                         direction,
                         length,
@@ -197,7 +312,32 @@ def get_polygons_for_cylinder(pos_start,
 def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None, plane=None, ax=None,
                          bounds=None, alpha=None, color=None, c_axon=None, c_dend=None, c_soma=None, plot_axon=True,
                          xlim=None, ylim=None):
+    '''
 
+    Parameters
+    ----------
+    cell
+    cell_name
+    cell_folder
+    pos
+    rot
+    plane
+    ax
+    bounds
+    alpha
+    color
+    c_axon
+    c_dend
+    c_soma
+    plot_axon
+    xlim
+    ylim
+
+    Returns
+    -------
+
+    '''
+    import LFPy
 
     if cell is None:
         if cell_name is None or cell_folder is None:
@@ -338,7 +478,6 @@ def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, 
                                  facecolors=col_soma,
                                  alpha=alp)
 
-
         axis.add_collection(polycol_dend)
         axis.add_collection(polycol_apic)
         axis.add_collection(polycol_soma)    
@@ -369,6 +508,38 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                 fig=None,ax=None, projections3d=False, alpha=None, color=None, condition=None,
                 c_axon=None, c_dend=None, c_soma=None, plot_axon=True, plot_dend=True, plot_soma=True,
                 xlim=None, ylim=None, somasize=30):
+    '''
+
+    Parameters
+    ----------
+    cell
+    cell_name
+    cell_folder
+    pos
+    rot
+    bounds
+    plane
+    fig
+    ax
+    projections3d
+    alpha
+    color
+    condition
+    c_axon
+    c_dend
+    c_soma
+    plot_axon
+    plot_dend
+    plot_soma
+    xlim
+    ylim
+    somasize
+
+    Returns
+    -------
+
+    '''
+    import LFPy
 
     # in LFPy you can get all points of tue neuron
     # cell.get
@@ -439,21 +610,21 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
             elif idx in idx_ax:
                 yz.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]], 'b')
             else:
-                yz.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]], 'k')
+                yz.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]], 'k', lw=0.5)
         for idx in range(cell.totnsegs):
             if idx == cell.somaidx:
                 xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], 'r', lw=5)
             elif idx in idx_ax:
                 xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], 'b')
             else:
-                xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], 'k')
+                xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], 'k', lw=0.5)
         for idx in range(cell.totnsegs):
             if idx == cell.somaidx:
                 xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], 'r', lw=5)
             elif idx in idx_ax:
                 xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], 'b')
             else:
-                xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], 'k')
+                xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], 'k', lw=0.5)
 
         for idx in range(cell.totnsegs):
             if idx == cell.somaidx:
@@ -464,7 +635,7 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                             [cell.zstart[idx], cell.zend[idx]], 'b')
             else:
                 threeD.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
-                            [cell.zstart[idx], cell.zend[idx]], 'k')
+                            [cell.zstart[idx], cell.zend[idx]], 'k', lw=0.5)
 
         yz.set_xlabel('y ($\mu$m)')
         yz.set_ylabel('z ($\mu$m)')
@@ -475,11 +646,11 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
         threeD.set_xlabel('x ($\mu$m)')
         threeD.set_ylabel('y ($\mu$m)')
         threeD.set_zlabel('z ($\mu$m)')
+        threeD.axis('equal')
 
         return fig 
 
     else:
-
         if ax:
             axis = ax
         else:
@@ -490,70 +661,188 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                 axis = fig.add_subplot(111, projection='3d')
 
         if plane is 'xy':
+            zips = []
+            zips_ax = []
+            zips_dend = []
+
+            for x, y in cell.get_idx_polygons():
+                zips.append(list(zip(x, y)))
+
             for idx in range(cell.totnsegs):
                 if idx in idx_ax:
                     if plot_axon:
-                        axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], color=col_ax,
-                                  alpha=alp, zorder=3)
-                else:
+                        if method == 'lines':
+                            axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
+                                      color=col_ax, lw=lwid,
+                                      alpha=alp, zorder=3)
+                        elif method == 'polygons':
+                            zips_ax.append(zips[idx])
+                elif idx not in idx_soma:
                     if plot_dend:
-                        axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]], color=col_dend,
-                                  alpha=alp, zorder=2)
+                        if method == 'lines':
+                            axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
+                                      color=col_dend, lw=lwid,
+                                      alpha=alp, zorder=2)
+                        elif method == 'polygons':
+                            zips_dend.append(zips[idx])
+
+            if method == 'polygons':
+                if len(zips_ax) > 1:
+                    polycol = PolyCollection(zips_ax,
+                                             edgecolors='none',
+                                             facecolors=col_ax,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
+                if len(zips_dend) > 1:
+                    polycol = PolyCollection(zips_dend,
+                                             edgecolors='none',
+                                             facecolors=col_dend,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
             if plot_soma:
-                e = Ellipse(xy=[cell.somapos[0], cell.somapos[2]],
-                            width=somasize,
-                            height=somasize,
+                height = np.sqrt((cell.xend[0] - cell.xstart[0]) ** 2 + (cell.yend[0] - cell.ystart[0]) ** 2)
+                width = cell.diam[0]
+                if (cell.xend[0] - cell.xstart[0]) != 0:
+                    angle = np.rad2deg((cell.yend[0] - cell.ystart[0]) / (cell.xend[0] - cell.xstart[0]))
+                else:
+                    angle = 90
+
+                e = Ellipse(xy=[cell.somapos[0], cell.somapos[1]],
+                            width=width,
+                            height=height,
+                            angle=angle,
                             color=col_soma,
                             zorder=10,
                             alpha=alp)
                 axis.add_artist(e)
 
-            axis.set_xlabel('x ($\mu$m)')
-            axis.set_ylabel('y ($\mu$m)')
+            axis.set_xlabel('x ($\mu$m)', fontsize=labelsize)
+            axis.set_ylabel('y ($\mu$m)', fontsize=labelsize)
 
         elif plane is 'yz':
+            zips = []
+            zips_ax = []
+            zips_dend = []
+
+            for y, z in cell.get_idx_polygons():
+                zips.append(list(zip(y, z)))
+
             for idx in range(cell.totnsegs):
                 if idx in idx_ax:
                     if plot_axon:
-                        axis.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]], color=col_ax,
-                                  alpha=alp, zorder=3)
-                else:
+                        if method=='lines':
+                            axis.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                                      color=col_ax, lw=lwid,
+                                      alpha=alp, zorder=3)
+                        elif method=='polygons':
+                            zips_ax.append(zips[idx])
+                elif idx not in idx_soma:
                     if plot_dend:
-                        axis.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]], color=col_dend,
-                                  alpha=alp, zorder=2)
+                        if method=='lines':
+                            axis.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                                      color=col_dend, lw=lwid,
+                                      alpha=alp, zorder=2)
+                        elif method=='polygons':
+                            zips_dend.append(zips[idx])
+
+            if method=='polygons':
+                if len(zips_ax) > 1:
+                    polycol = PolyCollection(zips_ax,
+                                             edgecolors='none',
+                                             facecolors=col_ax,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
+                if len(zips_dend) > 1:
+                    polycol = PolyCollection(zips_dend,
+                                             edgecolors='none',
+                                             facecolors=col_dend,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
+
             if plot_soma:
-                e = Ellipse(xy=[cell.somapos[0], cell.somapos[2]],
-                            width=somasize,
-                            height=somasize,
+                height = np.sqrt((cell.yend[0]-cell.ystart[0])**2 + (cell.zend[0]-cell.zstart[0])**2)
+                width = cell.diam[0]
+                if (cell.yend[0]-cell.ystart[0]) != 0:
+                    angle = np.rad2deg((cell.zend[0]-cell.zstart[0])/(cell.yend[0]-cell.ystart[0]))
+                else:
+                    angle = 90
+
+                e = Ellipse(xy=[cell.somapos[1], cell.somapos[2]],
+                            width=width,
+                            height=height,
+                            angle=angle,
                             color=col_soma,
                             zorder=10,
                             alpha=alp)
                 axis.add_artist(e)
 
-            axis.set_xlabel('y ($\mu$m)')
-            axis.set_ylabel('z ($\mu$m)')
+            axis.set_xlabel('y ($\mu$m)', fontsize=labelsize)
+            axis.set_ylabel('z ($\mu$m)', fontsize=labelsize)
 
         elif plane is 'xz':
+            zips = []
+            zips_ax = []
+            zips_dend = []
+
+            for x, z in cell.get_idx_polygons():
+                zips.append(list(zip(x, z)))
+
             for idx in range(cell.totnsegs):
                 if idx in idx_ax:
                     if plot_axon:
-                        axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], color=col_ax,
-                                  alpha=alp, zorder=3)
-                else:
+                        if method == 'lines':
+                            axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                                      color=col_ax, lw=lwid,
+                                      alpha=alp, zorder=3)
+                        elif method == 'polygons':
+                            zips_ax.append(zips[idx])
+                elif idx not in idx_soma:
                     if plot_dend:
-                        axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]], color=col_dend,
-                                  alpha=alp, zorder=2)
+                        if method == 'lines':
+                            axis.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                                      color=col_dend, lw=lwid,
+                                      alpha=alp, zorder=2)
+                        elif method == 'polygons':
+                            zips_dend.append(zips[idx])
+
+            if method == 'polygons':
+                if len(zips_ax) > 1:
+                    polycol = PolyCollection(zips_ax,
+                                             edgecolors='none',
+                                             facecolors=col_ax,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
+                if len(zips_dend) > 1:
+                    polycol = PolyCollection(zips_dend,
+                                             edgecolors='none',
+                                             facecolors=col_dend,
+                                             alpha=alp,
+                                             zorder=2)
+                    axis.add_collection(polycol)
             if plot_soma:
+                height = np.sqrt((cell.xend[0] - cell.xstart[0]) ** 2 + (cell.zend[0] - cell.zstart[0]) ** 2)
+                width = cell.diam[0]
+                if (cell.xend[0] - cell.xstart[0]) != 0:
+                    angle = np.rad2deg((cell.zend[0] - cell.zstart[0]) / (cell.xend[0] - cell.xstart[0]))
+                else:
+                    angle=90
+
                 e = Ellipse(xy=[cell.somapos[0], cell.somapos[2]],
-                            width=somasize,
-                            height=somasize,
+                            width=width,
+                            height=height,
+                            angle=angle,
                             color=col_soma,
                             zorder=10,
                             alpha=alp)
                 axis.add_artist(e)
 
-            axis.set_xlabel('x ($\mu$m)')
-            axis.set_ylabel('z ($\mu$m)')
+            axis.set_xlabel('x ($\mu$m)', fontsize=labelsize)
+            axis.set_ylabel('z ($\mu$m)', fontsize=labelsize)
 
         elif plane is '3d':
             # ax = plt.gca()
@@ -652,7 +941,7 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                 axis.set_xlim3d(np.min(cell.xmid), np.max(cell.xmid))
                 axis.set_ylim3d(np.min(cell.ymid), np.max(cell.ymid))
                 axis.set_zlim3d(np.min(cell.zmid), np.max(cell.zmid))
-                axis.axis('equal')
+                # axis.axis('equal')
             else:
                 if xlim:
                     axis.set_xlim(xlim)
@@ -661,10 +950,16 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                 if not xlim and not ylim:
                     axis.axis('equal')
 
+        if rot is not None:
+            if len(rot) != 3:
+                print 'Input a single posiion at a time'
+            else:
+                cell.set_rotation(0, 0, -rot[2])
+                cell.set_rotation(0, -rot[1], 0)
+                cell.set_rotation(-rot[0], 0, 0)
+
         #del cell
         # return axis
-
-
 
 def get_templatename(f):
     '''
@@ -690,6 +985,18 @@ def get_templatename(f):
 
 
 def return_cell_shape(cell_name, cell_folder):
+    '''
+
+    Parameters
+    ----------
+    cell_name
+    cell_folder
+
+    Returns
+    -------
+
+    '''
+    import LFPy
 
     cwd = os.getcwd()
     os.chdir(cell_folder)
@@ -701,6 +1008,22 @@ def return_cell_shape(cell_name, cell_folder):
     return cell
 
 def plot_probe(mea_pos, mea_pitch, shape='square', elec_dim=10, axis=None, xlim=None, ylim=None):
+    '''
+
+    Parameters
+    ----------
+    mea_pos
+    mea_pitch
+    shape
+    elec_dim
+    axis
+    xlim
+    ylim
+
+    Returns
+    -------
+
+    '''
     from matplotlib.path import Path
     import matplotlib.patches as patches
     from matplotlib.collections import PatchCollection
@@ -781,66 +1104,314 @@ def plot_probe(mea_pos, mea_pitch, shape='square', elec_dim=10, axis=None, xlim=
         ax.set_ylim(ylim)
 
 
-def plot_mea_recording(spikes, mea_pos, mea_pitch, color='k', points=False, lw=1):
-    # create mea
+def plot_probe_3d(mea_pos, rot_axis, theta, pos=[0, 0, 0], shape='square', alpha=.5,
+                  elec_dim=15, probe_name=None, ax=None, xlim=None, ylim=None, zlim=None, top=1000):
+    '''
+
+    Parameters
+    ----------
+    mea_pos
+    mea_pitch
+    shape
+    elec_dim
+    axis
+    xlim
+    ylim
+
+    Returns
+    -------
+
+    '''
+    from matplotlib.patches import Circle
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    M = rotation_matrix2(rot_axis, theta)
+    rot_pos = np.dot(M, mea_pos.T).T
+    rot_pos += np.array(pos)
+
+    normal = np.cross(rot_pos[1]-rot_pos[0], rot_pos[-1]-rot_pos[0])
+
+    if probe_name is not None:
+        if 'neuronexus' in probe_name.lower():
+            for elec in rot_pos:
+                p = Circle((0, 0), elec_dim/2., facecolor='orange', alpha=alpha)
+                ax.add_patch(p)
+                make_patch_3d(p, rot_axis, theta+np.pi/2.)
+                pathpatch_translate(p, elec)
+
+        tip_el_y = np.min(mea_pos[:, 2])
+        bottom = tip_el_y - 62
+        cz = 62 + np.sqrt(22**2 - 18**2) + 9*25
+        top = top
+
+        x_shank = [0, 0, 0, 0, 0, 0, 0]
+        y_shank = [-57, -57, -31, 0, 31, 57, 57]
+        z_shank = [bottom + top, bottom + cz, bottom + 62, bottom, bottom + 62, bottom + cz, bottom + top]
+
+        shank_coord = np.array([x_shank, y_shank, z_shank])
+        shank_coord_rot = np.dot(M, shank_coord)
+
+        r = Poly3DCollection([np.transpose(shank_coord_rot)])
+        # r.set_facecolor('green')
+        alpha = (0.3,)
+        mea_col = mpl_colors.to_rgb('g') + alpha
+        edge_col = mpl_colors.to_rgb('k') + alpha
+        r.set_edgecolor(edge_col)
+        r.set_facecolor(mea_col)
+        ax.add_collection3d(r)
+
+
+    if xlim:
+        ax.set_xlim(xlim)
+    if ylim:
+        ax.set_ylim(ylim)
+    if zlim:
+        ax.set_zlim(zlim)
+
+    return rot_pos
+
+
+def plot_cylinder_3d(bottom, direction, length, radius, color='k', alpha=.5, ax=None,
+                     xlim=None, ylim=None, zlim=None):
+    '''
+
+    Parameters
+    ----------
+    bottom
+    direction
+    color
+    alpha
+    ax
+    xlim
+    ylim
+    zlim
+
+    Returns
+    -------
+
+    '''
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+    poly3d = get_polygons_for_cylinder(bottom, direction, length, radius, n_points=100, facecolor=color, edgecolor='k',
+                              alpha=alpha, lw=0., flatten_along_zaxis=False)
+
+    for crt_poly3d in poly3d:
+        ax.add_collection3d(crt_poly3d)
+
+    if xlim:
+        ax.set_xlim3d(xlim)
+    if ylim:
+        ax.set_xlim3d(ylim)
+    if zlim:
+        ax .set_xlim3d(zlim)
+
+    return ax
+
+
+# def plot_mea_recording(spikes, mea_pos, mea_pitch, color='k', points=False, lw=1):
+#     '''
+#
+#     Parameters
+#     ----------
+#     spikes
+#     mea_pos
+#     mea_pitch
+#     color
+#     points
+#     lw
+#
+#     Returns
+#     -------
+#
+#     '''
+#     number_electrode = mea_pos.shape[0]
+#
+#     y_pos = np.unique(mea_pos[:, 1])
+#     z_pos = np.unique(mea_pos[:, 2])
+#
+#     y_norm = mea_pos[:, 1] - np.mean(mea_pos[:, 1])
+#     z_norm = mea_pos[:, 2] - np.mean(mea_pos[:, 2])
+#
+#     z_col = mea_pos[np.where(mea_pos[:, 1]==y_pos[len(y_pos)//2])[0], 2]
+#     y_row = mea_pos[np.where(mea_pos[:, 2]==z_pos[len(y_pos)//2])[0], 1]
+#
+#     N_z = len(z_col)
+#     N_y = len(y_row)
+#     y_pitch = mea_pitch[0]
+#     z_pitch = mea_pitch[1]
+#     # y_width = np.ptp(y_row)+y_pitch
+#     # z_width = np.ptp(z_col)+z_pitch
+#     y_width = np.ptp(y_norm) + y_pitch
+#     z_width = np.ptp(z_norm) + z_pitch
+#     yoffset = abs(np.min(y_norm)) + y_pitch / 2.
+#     zoffset = abs(np.min(z_norm)) + z_pitch / 2.
+#
+#     # plot spikes on grid
+#     fig = plt.figure()
+#     for el in range(number_electrode):
+#         # use add axes to adjust position and size
+#         w = 0.9*y_pitch/y_width
+#         h = 0.9*z_pitch/z_width
+#         l = 0.05+(y_norm[el] - y_pitch/2. + yoffset) / y_width * 0.9
+#         b = 0.05+(z_norm[el] - z_pitch/2. + zoffset) / z_width * 0.9
+#
+#         rect = l, b, w, h
+#
+#         ax = fig.add_axes(rect)
+#         if len(spikes.shape) == 3:  # multiple
+#             if points:
+#                 ax.plot(np.transpose(spikes[:, el, :]), linestyle='-', marker='o', ms=2, lw=lw)
+#             else:
+#                 ax.plot(np.transpose(spikes[:, el, :]), lw=lw)
+#         else:
+#             if points:
+#                 ax.plot(spikes[el, :], color=color, linestyle='-', marker='o', ms=2, lw=lw)
+#             else:
+#                 ax.plot(spikes[el, :], color=color, lw=lw)
+#
+#         ax.set_ylim([np.min(spikes), np.max(spikes)])
+#         ax.set_xticks([])
+#         ax.set_yticks([])
+#         ax.axis('off')
+#
+#     # return axis registered for neuron overlapping and mea bounds
+#     axneur = fig.add_axes([0.05, 0.05, 0.9, 0.9])
+#     axneur.axis('off')
+#     bounds = [np.min(mea_pos[:, 1]), np.max(mea_pos[:, 1]), np.min(mea_pos[:, 2]), np.max(mea_pos[:, 2])]
+#     return fig, axneur, bounds
+
+
+def plot_mea_recording(spikes, mea_pos, mea_pitch, colors=None, points=False, lw=1, ax=None, spacing=None,
+                       scalebar=False, time=None, dt=None, vscale=None):
+    '''
+
+    Parameters
+    ----------
+    spikes
+    mea_pos
+    mea_pitch
+    color
+    points
+    lw
+
+    Returns
+    -------
+
+    '''
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1, frameon=False)
+        no_tight = False
+    else:
+        no_tight = True
+
+    if spacing is None:
+        spacing = 0.1*np.max(mea_pitch)
+
+    # normalize to min peak
+    if vscale is None:
+        LFPmin = 1.5*   np.max(np.abs(spikes))
+        spike_norm = spikes / LFPmin * mea_pitch[1]
+    else:
+        spike_norm = spikes / vscale * mea_pitch[1]
+
+    if colors is None:
+        if len(spikes.shape) > 2:
+            colors = plt.rcParams['axes.color_cycle']
+        else:
+            colors='k'
+
     number_electrode = mea_pos.shape[0]
-
-    y_pos = np.unique(mea_pos[:, 1])
-    z_pos = np.unique(mea_pos[:, 2])
-    z_col = mea_pos[np.where(mea_pos[:, 1]==y_pos[len(y_pos)//2])[0], 2]
-    y_row = mea_pos[np.where(mea_pos[:, 2]==z_pos[len(y_pos)//2])[0], 1]
-    N_z = len(z_col)
-    N_y = len(y_row)
-    y_pitch = mea_pitch[0]
-    z_pitch = mea_pitch[1]
-    y_width = np.ptp(y_row)+y_pitch
-    z_width = np.ptp(z_col)+z_pitch
-
-    # plot spikes on grid
-    fig = plt.figure()
     for el in range(number_electrode):
-        # use add axes to adjust position and size
-        yoffset = abs(np.min(mea_pos[:, 1])) + y_pitch/2.
-        zoffset = abs(np.min(mea_pos[:, 2])) + z_pitch/2.
-        w = 0.9*y_pitch/y_width
-        h = 0.9*z_pitch/z_width
-        l = 0.05+(mea_pos[el, 1] - y_pitch/2. + yoffset) / y_width * 0.9
-        b = 0.05+(mea_pos[el, 2] - z_pitch/2. + zoffset) / z_width * 0.9
-
-        rect = l, b, w, h
-
-        ax = fig.add_axes(rect)
         if len(spikes.shape) == 3:  # multiple
             if points:
-                ax.plot(np.transpose(spikes[:, el, :]), linestyle='-', marker='o', ms=2, lw=lw)
+                for sp_i, sp in enumerate(spike_norm):
+                    if len(colors) >= len(spike_norm) and len(colors) > 1:
+                        ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[2]) + mea_pos[el, 1],
+                                np.transpose(sp[el, :]) +
+                                mea_pos[el, 2], linestyle='-', marker='o', ms=2, lw=lw, color=colors[sp_i],
+                                label='EAP '+ str(sp_i+1))
+                    elif len(colors) == 1:
+                        ax.plot(np.linspace(0, mea_pitch[0] - spacing, spikes.shape[2]) + mea_pos[el, 1],
+                                np.transpose(sp[el, :]) +
+                                mea_pos[el, 2], linestyle='-', marker='o', ms=2, lw=lw, color=colors,
+                                label='EAP ' + str(sp_i + 1))
             else:
-                ax.plot(np.transpose(spikes[:, el, :]), lw=lw)
+                for sp_i, sp in enumerate(spike_norm):
+                    if len(colors) >= len(spike_norm) and len(colors) > 1:
+                        ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[2]) + mea_pos[el, 1],
+                                np.transpose(sp[el, :]) + mea_pos[el, 2], lw=lw, color=colors[sp_i],
+                                label='EAP '+str(sp_i+1))
+                    elif len(colors) == 1:
+                        ax.plot(np.linspace(0, mea_pitch[0] - spacing, spikes.shape[2]) + mea_pos[el, 1],
+                                np.transpose(sp[el, :]) + mea_pos[el, 2], lw=lw, color=colors,
+                                label='EAP ' + str(sp_i + 1))
+
         else:
             if points:
-                ax.plot(spikes[el, :], color=color, linestyle='-', marker='o', ms=2, lw=lw)
+                ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[1]) + mea_pos[el, 1], spike_norm[el, :]
+                        + mea_pos[el, 2], color=colors, linestyle='-', marker='o', ms=2, lw=lw)
             else:
-                ax.plot(spikes[el, :], color=color, lw=lw)
+                ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[1]) + mea_pos[el, 1], spike_norm[el, :] +
+                        mea_pos[el, 2], color=colors, lw=lw)
 
-        ax.set_ylim([np.min(spikes), np.max(spikes)])
+        # ax.set_ylim([np.min(spikes), np.max(spikes)])
         ax.set_xticks([])
         ax.set_yticks([])
         ax.axis('off')
 
-    # return axis registered for neuron overlapping and mea bounds
-    axneur = fig.add_axes([0.05, 0.05, 0.9, 0.9])
-    axneur.axis('off')
-    bounds = [np.min(mea_pos[:, 1]), np.max(mea_pos[:, 1]), np.min(mea_pos[:, 2]), np.max(mea_pos[:, 2])]
-    return fig, axneur, bounds
+    if scalebar:
+        if dt is None and time is None:
+            raise AttributeError('Pass either dt or time in the argument')
+        else:
+            shift = 0.1*spacing
+            pos_h = [np.min(mea_pos[:, 1]), np.min(mea_pos[:, 2]) - 1.5*mea_pitch[1]]
+            if vscale is None:
+                length_h = mea_pitch[1] * LFPmin / (LFPmin // 10 * 10)
+            else:
+                length_h = mea_pitch[1]
+            pos_w = [np.min(mea_pos[:, 1]), np.min(mea_pos[:, 2]) - 1.5*mea_pitch[1]]
+            length_w = mea_pitch[0]/5.
+
+            ax.plot([pos_h[0], pos_h[0]], [pos_h[1], pos_h[1] + length_h], color='k', lw=2)
+            if vscale is None:
+                ax.text(pos_h[0]+shift, pos_h[1] + length_h / 2., str(int(LFPmin // 10 * 10)) + ' $\mu$V')
+            else:
+                ax.text(pos_h[0]+shift, pos_h[1] + length_h / 2., str(int(vscale)) + ' $\mu$V')
+            ax.plot([pos_w[0], pos_w[0]+length_w], [pos_w[1], pos_w[1]], color='k', lw=2)
+            ax.text(pos_w[0]+shift, pos_w[1]-length_h/3., str(time/5) + ' ms')
+
+    if not no_tight:
+        fig.tight_layout()
+
+    return ax
 
 
-def plot_max_trace(spike, mea_dim=None, axis=None):
+def plot_max_trace(spike, mea_dim=None, ax=None):
+    '''
+
+    Parameters
+    ----------
+    spike
+    mea_dim
+    axis
+
+    Returns
+    -------
+
+    '''
     #  check if number of spike is 1
     if len(spike.shape) == 3:
         print 'Plot one spike at a time!'
         return
     else:
-        if axis:
-            ax = axis
+        if ax:
+            ax = ax
         else:
             fig = plt.figure()
             ax = fig.add_subplot(111)
@@ -854,13 +1425,29 @@ def plot_max_trace(spike, mea_dim=None, axis=None):
             print 'MEA dimensions are wrong!'
 
 
-def plot_min_trace(spike, mea_dim=None, axis=None, peak_image=None, cmap='jet', style='mat', origin='lower'):
+def plot_min_trace(spike, mea_dim=None, ax=None, peak_image=None, cmap='jet', style='mat', origin='lower'):
+    '''
+
+    Parameters
+    ----------
+    spike
+    mea_dim
+    ax
+    peak_image
+    cmap
+    style
+    origin
+
+    Returns
+    -------
+
+    '''
     #  check if number of spike is 1
     if len(spike.shape) == 3:
         raise AttributeError('Plot one spike at a time!')
     else:
-        if axis:
-            ax = axis
+        if ax:
+            ax = ax
         else:
             fig = plt.figure()
             ax = fig.add_subplot(111)
@@ -882,13 +1469,28 @@ def plot_min_trace(spike, mea_dim=None, axis=None, peak_image=None, cmap='jet', 
         return ax, im
 
 
-def plot_weight(weight, mea_dim=None, axis=None, cmap='viridis', style='mat', origin='lower'):
+def plot_weight(weight, mea_dim=None, ax=None, cmap='viridis', style='mat', origin='lower'):
+    '''
+
+    Parameters
+    ----------
+    weight
+    mea_dim
+    axis
+    cmap
+    style
+    origin
+
+    Returns
+    -------
+
+    '''
     #  check if number of spike is 1
     if len(weight.shape) == 3:
         raise AttributeError('Plot one weight at a time!')
     else:
-        if axis:
-            ax = axis
+        if ax:
+            ax = ax
         else:
             fig = plt.figure()
             ax = fig.add_subplot(111)
@@ -900,14 +1502,29 @@ def plot_weight(weight, mea_dim=None, axis=None, cmap='viridis', style='mat', or
             else:
                 im = ax.imshow(np.transpose(mea_values), cmap=cmap, origin=origin)
         else:
-            print 'MEA dimensions are wrong!'
+            raise Exception('MEA dimensions are wrong!')
 
         ax.axis('off')
         return ax, im
 
 
 
-def play_spike(spike, mea_dim, time=None, save=False, axis=None, file=None):
+def play_spike(spike, mea_dim, time=None, save=False, ax=None, file=None):
+    '''
+
+    Parameters
+    ----------
+    spike
+    mea_dim
+    time
+    save
+    ax
+    file
+
+    Returns
+    -------
+
+    '''
     #  check if number of spike is 1
     if len(spike.shape) == 3:
         print 'Plot one spike at a time!'
@@ -928,13 +1545,13 @@ def play_spike(spike, mea_dim, time=None, save=False, axis=None, file=None):
     z_min = np.min(spike)
     z_max = np.max(spike)
 
-    im0 = ax.matshow(np.zeros((mea_dim[0], mea_dim[1])), vmin=z_min, vmax=z_max)
+    im0 = ax.imshow(np.zeros((mea_dim[0], mea_dim[1])), vmin=z_min, vmax=z_max)
     fig.colorbar(im0)
     ims = []
 
     if (mea_dim[0] * mea_dim[1]) == spike.shape[0]:
         for t in range(spike.shape[1]):
-            ims.append([ax.matshow(np.transpose(spike[:, t].reshape((mea_dim[0], mea_dim[1]))),
+            ims.append([ax.imshow(np.transpose(spike[:, t].reshape((mea_dim[0], mea_dim[1]))),
                                    vmin=z_min, vmax=z_max)])
 
     im_ani = animation.ArtistAnimation(fig, ims, interval=inter, repeat_delay=2500, blit=True)
@@ -948,4 +1565,48 @@ def play_spike(spike, mea_dim, time=None, save=False, axis=None, file=None):
             im_ani.save('spike.mp4', writer=mywriter)
 
     return im_ani
+
+
+#### from plotting convention
+def mark_subplots(axes, letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ', xpos=0.05, ypos=0.95, fs=50):
+
+    if not type(axes) is list:
+        axes = [axes]
+
+    for idx, ax in enumerate(axes):
+        # Axes3d
+        try:
+            ax.text2D(xpos, ypos, letters[idx].capitalize(),
+                    horizontalalignment='center',
+                    verticalalignment='center',
+                    fontweight='demibold',
+                    fontsize=fs,
+                    transform=ax.transAxes)
+        except AttributeError:
+            ax.text(xpos, ypos, letters[idx].capitalize(),
+                      horizontalalignment='center',
+                      verticalalignment='center',
+                      fontweight='demibold',
+                      fontsize=fs,
+                      transform=ax.transAxes)
+
+def simplify_axes(axes):
+
+    if not type(axes) is list:
+        axes = [axes]
+
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+
+def color_axes(axes, clr):
+    if not type(axes) is list:
+        axes = [axes]
+    for ax in axes:
+        ax.tick_params(axis='x', colors=clr)
+        ax.tick_params(axis='y', colors=clr)
+        for spine in ax.spines.values():
+            spine.set_edgecolor(clr)
 

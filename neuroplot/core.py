@@ -94,7 +94,6 @@ def pathpatch_2d_to_3d(pathpatch, z = 0, normal = 'z'):
     pathpatch._facecolor3d = pathpatch.get_facecolor #Get the face color
 
     verts = path.vertices #Get the vertices in 2D
-    raise Exception()
 
     d = np.cross(normal, (0, 0, 1)) #Obtain the rotation vector
     M = rotation_matrix(d) #Get the rotation matrix
@@ -205,7 +204,7 @@ def _cylinder(pos_start, direction, length, radius, n_points, flatten_along_zaxi
     else:
         phi = -(np.pi / 2. - np.arctan(d[2] / rho))
 
-    # print 'phi: ', np.rad2deg(phi)
+    # print('phi: ', np.rad2deg(phi)
 
     rot1_m = _rotation_matrix(r_1, phi)
     rot2_m = _rotation_matrix(r_2, theta)
@@ -275,13 +274,14 @@ def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, fa
                        z[0][idx_theta + 1],
                        z[0][idx_theta + 1 + theta_ring.size],
                        z[0][idx_theta + theta_ring.size]]
-            verts_hull.append([zip(x_verts, y_verts, z_verts)])
+            verts_hull.append(zip(x_verts, y_verts, z_verts))
 
     poly3d_hull = []
     for crt_vert in verts_hull:
-        cyl = Poly3DCollection(crt_vert, linewidths=lw)
+        cyl = Poly3DCollection([list(crt_vert)], linewidths=lw)
         cyl.set_facecolor(face_col)
         cyl.set_edgecolor(edge_col)
+        cyl.set_alpha(alpha)
 
         poly3d_hull.append(cyl)
 
@@ -289,23 +289,26 @@ def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, fa
     x_verts = x[0][0:theta_ring.size - 1]
     y_verts = y[0][0:theta_ring.size - 1]
     z_verts = z[0][0:theta_ring.size - 1]
-    verts_lowerlid = [zip(x_verts, y_verts, z_verts)]
+    verts_lowerlid = [list(zip(x_verts, y_verts, z_verts))]
     poly3ed_lowerlid = Poly3DCollection(verts_lowerlid, linewidths=lw, zorder=1)
     poly3ed_lowerlid.set_facecolor(face_col)
     poly3ed_lowerlid.set_edgecolor(edge_col)
+    poly3ed_lowerlid.set_alpha(alpha)
 
     # draw upper lid
     x_verts = x[0][theta_ring.size:theta_ring.size * 2 - 1]
     y_verts = y[0][theta_ring.size:theta_ring.size * 2 - 1]
     z_verts = z[0][theta_ring.size:theta_ring.size * 2 - 1]
-    verts_upperlid = [zip(x_verts, y_verts, z_verts)]
+    verts_upperlid = [list(zip(x_verts, y_verts, z_verts))]
     poly3ed_upperlid = Poly3DCollection(verts_upperlid, linewidths=lw, zorder=1)
     poly3ed_upperlid.set_facecolor(face_col)
     poly3ed_upperlid.set_edgecolor(edge_col)
+    poly3ed_upperlid.set_alpha(alpha)
 
     return_col = poly3d_hull
     return_col.append(poly3ed_lowerlid)
     return_col.append(poly3ed_upperlid)
+
     return return_col
 
 
@@ -354,12 +357,12 @@ def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, 
 
     if pos is not None:
         if len(pos) != 3:
-            print 'Input a single posiion at a time'
+            print('Input a single posiion at a time')
         else:
             cell.set_pos(pos[0], pos[1], pos[2])
     if rot is not None:
         if len(rot) != 3:
-            print 'Input a single posiion at a time'
+            print('Input a single posiion at a time')
         else:
             cell.set_rotation(rot[0], rot[1], rot[2])
 
@@ -420,7 +423,7 @@ def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, 
         '''USE x3d, y3d, z3d and nested cycle...not better'''
 
         for ii in range(len(cell.x3d)):
-            print 'seg: [', ii, '/', len(cell.x3d), ']'
+            print('seg: [', ii, '/', len(cell.x3d), ']')
             for jj in range(len(cell.x3d[ii])-1):
                 init = np.array([cell.x3d[ii][jj], cell.y3d[ii][jj], cell.z3d[ii][jj]])
                 end = np.array([cell.x3d[ii][jj+1], cell.y3d[ii][jj+1], cell.z3d[ii][jj+1]])
@@ -428,13 +431,13 @@ def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, 
                 len_seg = np.linalg.norm(end-init)
                 n_points = 5.
                 neur_poly3d = get_polygons_for_cylinder(init,
-                                                         direction=dir_seg,
-                                                         length=len_seg,
-                                                         radius=cell.diam3d[ii][jj]/2,
-                                                         n_points=n_points,
-                                                         facecolor=col,
-                                                         alpha=alp,
-                                                         flatten_along_zaxis=False)
+                                                        direction=dir_seg,
+                                                        length=len_seg,
+                                                        radius=cell.diam3d[ii][jj]/2,
+                                                        n_points=n_points,
+                                                        facecolor=col,
+                                                        alpha=alp,
+                                                        flatten_along_zaxis=False)
                 for crt_poly3d in neur_poly3d:
                     axis.add_collection3d(crt_poly3d)
 
@@ -507,7 +510,7 @@ def plot_detailed_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, 
 def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None, bounds=None, plane=None,
                 fig=None,ax=None, projections3d=False, alpha=None, color=None, condition=None,
                 c_axon=None, c_dend=None, c_soma=None, plot_axon=True, plot_dend=True, plot_soma=True,
-                xlim=None, ylim=None, somasize=30):
+                xlim=None, ylim=None, method='lines', labelsize=20, lwid=1, somasize=30):
     '''
 
     Parameters
@@ -548,10 +551,10 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
             raise AttributeError('Either a Cell object or the cell name and location should be passed as parameters')
         folder = join(cell_folder, cell_name)
         cwd = os.getcwd()
-        print folder
+        print(folder)
         os.chdir(folder)
         morphologyfile = os.listdir('morphology')[0]  # glob('morphology\\*')[0]
-        print join('morphology', morphologyfile)
+        print(join('morphology', morphologyfile))
         cell = LFPy.Cell(morphology=join('morphology', morphologyfile))
         os.chdir(cwd)
     elif type(cell) is not LFPy.TemplateCell and type(cell) is not LFPy.Cell:
@@ -560,12 +563,12 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
     # cell = return_cell_shape(folder, cell_name)
     if pos is not None:
         if len(pos) != 3:
-            print 'Input a single posiion at a time'
+            print('Input a single posiion at a time')
         else:
             cell.set_pos(pos[0], pos[1], pos[2])
     if rot is not None:
         if len(rot) != 3:
-            print 'Input a single posiion at a time'
+            print('Input a single posiion at a time')
         else:
             cell.set_rotation(rot[0], rot[1], rot[2])
 
@@ -858,15 +861,15 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
                         len_seg = np.linalg.norm(end - init)
                         n_points = 10.
                         neur_poly3d = get_polygons_for_cylinder(init,
-                                                                 direction=dir_seg,
-                                                                 length=len_seg,
-                                                                 radius=cell.diam3d[idx][jj] / 2,
-                                                                 n_points=n_points,
-                                                                 facecolor=col_soma,
-                                                                 edgecolor=col_soma,
-                                                                 lw = 0.5,
-                                                                 alpha=alp,
-                                                                 flatten_along_zaxis=False)
+                                                                direction=dir_seg,
+                                                                length=len_seg,
+                                                                radius=cell.diam3d[idx][jj] / 2,
+                                                                n_points=n_points,
+                                                                facecolor=col_soma,
+                                                                edgecolor=col_soma,
+                                                                lw=0.5,
+                                                                alpha=alp,
+                                                                flatten_along_zaxis=False)
                         for crt_poly3d in neur_poly3d:
                             ax_3d.add_collection3d(crt_poly3d)
                     # ax_3d.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
@@ -952,226 +955,11 @@ def plot_neuron(cell=None, cell_name=None, cell_folder=None, pos=None, rot=None,
 
         if rot is not None:
             if len(rot) != 3:
-                print 'Input a single posiion at a time'
+                print('Input a single posiion at a time')
             else:
                 cell.set_rotation(0, 0, -rot[2])
                 cell.set_rotation(0, -rot[1], 0)
                 cell.set_rotation(-rot[0], 0, 0)
-
-        #del cell
-        # return axis
-
-def get_templatename(f):
-    '''
-    Assess from hoc file the templatename being specified within
-
-    Arguments
-    ---------
-    f : file, mode 'r'
-
-    Returns
-    -------
-    templatename : str
-
-    '''
-    templatename = None
-    f = file("template.hoc", 'r')
-    for line in f.readlines():
-        if 'begintemplate' in line.split():
-            templatename = line.split()[-1]
-            print 'template {} found!'.format(templatename)
-            continue
-    return templatename
-
-
-def return_cell_shape(cell_name, cell_folder):
-    '''
-
-    Parameters
-    ----------
-    cell_name
-    cell_folder
-
-    Returns
-    -------
-
-    '''
-    import LFPy
-
-    cwd = os.getcwd()
-    os.chdir(cell_folder)
-    print cell_folder
-    morphologyfile = os.listdir('morphology')[0]  # glob('morphology\\*')[0]
-    cell = LFPy.Cell(morphology=join('morphology', morphologyfile), pt3d=True, delete_sections=False)
-    os.chdir(cwd)
-
-    return cell
-
-def plot_probe(mea_pos, mea_pitch, shape='square', elec_dim=10, axis=None, xlim=None, ylim=None):
-    '''
-
-    Parameters
-    ----------
-    mea_pos
-    mea_pitch
-    shape
-    elec_dim
-    axis
-    xlim
-    ylim
-
-    Returns
-    -------
-
-    '''
-    from matplotlib.path import Path
-    import matplotlib.patches as patches
-    from matplotlib.collections import PatchCollection
-
-    if axis:
-        ax = axis
-    else:
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
-    n_elec = mea_pos.shape[0]
-
-    y_pitch = mea_pitch[0]
-    z_pitch = mea_pitch[1]
-
-
-    elec_size = elec_dim / 2
-    elec_size = (np.min([y_pitch,z_pitch]) - 0.3*np.min([y_pitch,z_pitch]))/2.
-    elec_dim = (np.min([y_pitch,z_pitch]) - 0.3*np.min([y_pitch,z_pitch]))
-
-    min_y = np.min(mea_pos[:,1])
-    max_y = np.max(mea_pos[:,1])
-    min_z = np.min(mea_pos[:,2])
-    max_z = np.max(mea_pos[:,2])
-    center_y = 0
-    probe_height = 200
-    probe_top = max_z + probe_height
-    prob_bottom = min_z - probe_height
-    prob_corner = min_z - 0.1*probe_height
-    probe_left = min_y - 0.1*probe_height
-    probe_right = max_y + 0.1*probe_height
-
-    print min_y, max_y, min_z, max_z
-
-
-    verts = [
-        (min_y - 2*elec_dim, probe_top),  # left, bottom
-        (min_y - 2*elec_dim, prob_corner),  # left, top
-        (center_y, prob_bottom),  # right, top
-        (max_y + 2*elec_dim, prob_corner),  # right, bottom
-        (max_y + 2*elec_dim, probe_top),
-        (min_y - 2 * elec_dim, max_z + 2 * elec_dim) # ignored
-    ]
-
-    codes = [Path.MOVETO,
-             Path.LINETO,
-             Path.LINETO,
-             Path.LINETO,
-             Path.LINETO,
-             Path.CLOSEPOLY,
-             ]
-
-    path = Path(verts, codes)
-
-    patch = patches.PathPatch(path, facecolor='green', edgecolor='k', lw=0.5, alpha=0.3)
-    ax.add_patch(patch)
-
-    if shape == 'square':
-        for e in range(n_elec):
-            elec = patches.Rectangle((mea_pos[e, 1] - elec_size, mea_pos[e, 2] - elec_size), elec_dim,  elec_dim,
-                                     alpha=0.7, facecolor='orange', edgecolor=[0.3, 0.3, 0.3], lw=0.5)
-
-            ax.add_patch(elec)
-    elif shape == 'circle':
-        for e in range(n_elec):
-            elec = patches.Circle((mea_pos[e, 1], mea_pos[e, 2]), elec_size,
-                                     alpha=0.7, facecolor='orange', edgecolor=[0.3, 0.3, 0.3], lw=0.5)
-
-            ax.add_patch(elec)
-
-    ax.set_xlim(probe_left - 5*elec_dim, probe_right + 5*elec_dim)
-    ax.set_ylim(prob_bottom - 5*elec_dim, probe_top + 5*elec_dim)
-    # ax.axis('equal')
-
-    if xlim:
-        ax.set_xlim(xlim)
-    if ylim:
-        ax.set_ylim(ylim)
-
-
-def plot_probe_3d(mea_pos, rot_axis, theta, pos=[0, 0, 0], shape='square', alpha=.5,
-                  elec_dim=15, probe_name=None, ax=None, xlim=None, ylim=None, zlim=None, top=1000):
-    '''
-
-    Parameters
-    ----------
-    mea_pos
-    mea_pitch
-    shape
-    elec_dim
-    axis
-    xlim
-    ylim
-
-    Returns
-    -------
-
-    '''
-    from matplotlib.patches import Circle
-
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1, projection='3d')
-
-    M = rotation_matrix2(rot_axis, theta)
-    rot_pos = np.dot(M, mea_pos.T).T
-    rot_pos += np.array(pos)
-
-    normal = np.cross(rot_pos[1]-rot_pos[0], rot_pos[-1]-rot_pos[0])
-
-    if probe_name is not None:
-        if 'neuronexus' in probe_name.lower():
-            for elec in rot_pos:
-                p = Circle((0, 0), elec_dim/2., facecolor='orange', alpha=alpha)
-                ax.add_patch(p)
-                make_patch_3d(p, rot_axis, theta+np.pi/2.)
-                pathpatch_translate(p, elec)
-
-        tip_el_y = np.min(mea_pos[:, 2])
-        bottom = tip_el_y - 62
-        cz = 62 + np.sqrt(22**2 - 18**2) + 9*25
-        top = top
-
-        x_shank = [0, 0, 0, 0, 0, 0, 0]
-        y_shank = [-57, -57, -31, 0, 31, 57, 57]
-        z_shank = [bottom + top, bottom + cz, bottom + 62, bottom, bottom + 62, bottom + cz, bottom + top]
-
-        shank_coord = np.array([x_shank, y_shank, z_shank])
-        shank_coord_rot = np.dot(M, shank_coord)
-
-        r = Poly3DCollection([np.transpose(shank_coord_rot)])
-        # r.set_facecolor('green')
-        alpha = (0.3,)
-        mea_col = mpl_colors.to_rgb('g') + alpha
-        edge_col = mpl_colors.to_rgb('k') + alpha
-        r.set_edgecolor(edge_col)
-        r.set_facecolor(mea_col)
-        ax.add_collection3d(r)
-
-
-    if xlim:
-        ax.set_xlim(xlim)
-    if ylim:
-        ax.set_ylim(ylim)
-    if zlim:
-        ax.set_zlim(zlim)
-
-    return rot_pos
 
 
 def plot_cylinder_3d(bottom, direction, length, radius, color='k', alpha=.5, ax=None,
@@ -1213,185 +1001,6 @@ def plot_cylinder_3d(bottom, direction, length, radius, color='k', alpha=.5, ax=
     return ax
 
 
-# def plot_mea_recording(spikes, mea_pos, mea_pitch, color='k', points=False, lw=1):
-#     '''
-#
-#     Parameters
-#     ----------
-#     spikes
-#     mea_pos
-#     mea_pitch
-#     color
-#     points
-#     lw
-#
-#     Returns
-#     -------
-#
-#     '''
-#     number_electrode = mea_pos.shape[0]
-#
-#     y_pos = np.unique(mea_pos[:, 1])
-#     z_pos = np.unique(mea_pos[:, 2])
-#
-#     y_norm = mea_pos[:, 1] - np.mean(mea_pos[:, 1])
-#     z_norm = mea_pos[:, 2] - np.mean(mea_pos[:, 2])
-#
-#     z_col = mea_pos[np.where(mea_pos[:, 1]==y_pos[len(y_pos)//2])[0], 2]
-#     y_row = mea_pos[np.where(mea_pos[:, 2]==z_pos[len(y_pos)//2])[0], 1]
-#
-#     N_z = len(z_col)
-#     N_y = len(y_row)
-#     y_pitch = mea_pitch[0]
-#     z_pitch = mea_pitch[1]
-#     # y_width = np.ptp(y_row)+y_pitch
-#     # z_width = np.ptp(z_col)+z_pitch
-#     y_width = np.ptp(y_norm) + y_pitch
-#     z_width = np.ptp(z_norm) + z_pitch
-#     yoffset = abs(np.min(y_norm)) + y_pitch / 2.
-#     zoffset = abs(np.min(z_norm)) + z_pitch / 2.
-#
-#     # plot spikes on grid
-#     fig = plt.figure()
-#     for el in range(number_electrode):
-#         # use add axes to adjust position and size
-#         w = 0.9*y_pitch/y_width
-#         h = 0.9*z_pitch/z_width
-#         l = 0.05+(y_norm[el] - y_pitch/2. + yoffset) / y_width * 0.9
-#         b = 0.05+(z_norm[el] - z_pitch/2. + zoffset) / z_width * 0.9
-#
-#         rect = l, b, w, h
-#
-#         ax = fig.add_axes(rect)
-#         if len(spikes.shape) == 3:  # multiple
-#             if points:
-#                 ax.plot(np.transpose(spikes[:, el, :]), linestyle='-', marker='o', ms=2, lw=lw)
-#             else:
-#                 ax.plot(np.transpose(spikes[:, el, :]), lw=lw)
-#         else:
-#             if points:
-#                 ax.plot(spikes[el, :], color=color, linestyle='-', marker='o', ms=2, lw=lw)
-#             else:
-#                 ax.plot(spikes[el, :], color=color, lw=lw)
-#
-#         ax.set_ylim([np.min(spikes), np.max(spikes)])
-#         ax.set_xticks([])
-#         ax.set_yticks([])
-#         ax.axis('off')
-#
-#     # return axis registered for neuron overlapping and mea bounds
-#     axneur = fig.add_axes([0.05, 0.05, 0.9, 0.9])
-#     axneur.axis('off')
-#     bounds = [np.min(mea_pos[:, 1]), np.max(mea_pos[:, 1]), np.min(mea_pos[:, 2]), np.max(mea_pos[:, 2])]
-#     return fig, axneur, bounds
-
-
-def plot_mea_recording(spikes, mea_pos, mea_pitch, colors=None, points=False, lw=1, ax=None, spacing=None,
-                       scalebar=False, time=None, dt=None, vscale=None):
-    '''
-
-    Parameters
-    ----------
-    spikes
-    mea_pos
-    mea_pitch
-    color
-    points
-    lw
-
-    Returns
-    -------
-
-    '''
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1, frameon=False)
-        no_tight = False
-    else:
-        no_tight = True
-
-    if spacing is None:
-        spacing = 0.1*np.max(mea_pitch)
-
-    # normalize to min peak
-    if vscale is None:
-        LFPmin = 1.5*   np.max(np.abs(spikes))
-        spike_norm = spikes / LFPmin * mea_pitch[1]
-    else:
-        spike_norm = spikes / vscale * mea_pitch[1]
-
-    if colors is None:
-        if len(spikes.shape) > 2:
-            colors = plt.rcParams['axes.color_cycle']
-        else:
-            colors='k'
-
-    number_electrode = mea_pos.shape[0]
-    for el in range(number_electrode):
-        if len(spikes.shape) == 3:  # multiple
-            if points:
-                for sp_i, sp in enumerate(spike_norm):
-                    if len(colors) >= len(spike_norm) and len(colors) > 1:
-                        ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[2]) + mea_pos[el, 1],
-                                np.transpose(sp[el, :]) +
-                                mea_pos[el, 2], linestyle='-', marker='o', ms=2, lw=lw, color=colors[sp_i],
-                                label='EAP '+ str(sp_i+1))
-                    elif len(colors) == 1:
-                        ax.plot(np.linspace(0, mea_pitch[0] - spacing, spikes.shape[2]) + mea_pos[el, 1],
-                                np.transpose(sp[el, :]) +
-                                mea_pos[el, 2], linestyle='-', marker='o', ms=2, lw=lw, color=colors,
-                                label='EAP ' + str(sp_i + 1))
-            else:
-                for sp_i, sp in enumerate(spike_norm):
-                    if len(colors) >= len(spike_norm) and len(colors) > 1:
-                        ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[2]) + mea_pos[el, 1],
-                                np.transpose(sp[el, :]) + mea_pos[el, 2], lw=lw, color=colors[sp_i],
-                                label='EAP '+str(sp_i+1))
-                    elif len(colors) == 1:
-                        ax.plot(np.linspace(0, mea_pitch[0] - spacing, spikes.shape[2]) + mea_pos[el, 1],
-                                np.transpose(sp[el, :]) + mea_pos[el, 2], lw=lw, color=colors,
-                                label='EAP ' + str(sp_i + 1))
-
-        else:
-            if points:
-                ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[1]) + mea_pos[el, 1], spike_norm[el, :]
-                        + mea_pos[el, 2], color=colors, linestyle='-', marker='o', ms=2, lw=lw)
-            else:
-                ax.plot(np.linspace(0, mea_pitch[0]-spacing, spikes.shape[1]) + mea_pos[el, 1], spike_norm[el, :] +
-                        mea_pos[el, 2], color=colors, lw=lw)
-
-        # ax.set_ylim([np.min(spikes), np.max(spikes)])
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.axis('off')
-
-    if scalebar:
-        if dt is None and time is None:
-            raise AttributeError('Pass either dt or time in the argument')
-        else:
-            shift = 0.1*spacing
-            pos_h = [np.min(mea_pos[:, 1]), np.min(mea_pos[:, 2]) - 1.5*mea_pitch[1]]
-            if vscale is None:
-                length_h = mea_pitch[1] * LFPmin / (LFPmin // 10 * 10)
-            else:
-                length_h = mea_pitch[1]
-            pos_w = [np.min(mea_pos[:, 1]), np.min(mea_pos[:, 2]) - 1.5*mea_pitch[1]]
-            length_w = mea_pitch[0]/5.
-
-            ax.plot([pos_h[0], pos_h[0]], [pos_h[1], pos_h[1] + length_h], color='k', lw=2)
-            if vscale is None:
-                ax.text(pos_h[0]+shift, pos_h[1] + length_h / 2., str(int(LFPmin // 10 * 10)) + ' $\mu$V')
-            else:
-                ax.text(pos_h[0]+shift, pos_h[1] + length_h / 2., str(int(vscale)) + ' $\mu$V')
-            ax.plot([pos_w[0], pos_w[0]+length_w], [pos_w[1], pos_w[1]], color='k', lw=2)
-            ax.text(pos_w[0]+shift, pos_w[1]-length_h/3., str(time/5) + ' ms')
-
-    if not no_tight:
-        fig.tight_layout()
-
-    return ax
-
-
 def plot_max_trace(spike, mea_dim=None, ax=None):
     '''
 
@@ -1407,7 +1016,7 @@ def plot_max_trace(spike, mea_dim=None, ax=None):
     '''
     #  check if number of spike is 1
     if len(spike.shape) == 3:
-        print 'Plot one spike at a time!'
+        print('Plot one spike at a time!')
         return
     else:
         if ax:
@@ -1422,7 +1031,7 @@ def plot_max_trace(spike, mea_dim=None, ax=None):
             im = ax.matshow(np.transpose(mea_values))
             # fig.colorbar(im)
         else:
-            print 'MEA dimensions are wrong!'
+            print('MEA dimensions are wrong!')
 
 
 def plot_min_trace(spike, mea_dim=None, ax=None, peak_image=None, cmap='jet', style='mat', origin='lower'):
@@ -1461,7 +1070,7 @@ def plot_min_trace(spike, mea_dim=None, ax=None, peak_image=None, cmap='jet', st
                 else:
                     im = ax.imshow(np.transpose(mea_values), cmap=cmap, origin=origin)
             else:
-                print 'MEA dimensions are wrong!'
+                print('MEA dimensions are wrong!')
         else:
             im = ax.matshow(np.transpose(peak_image))
 
@@ -1527,7 +1136,7 @@ def play_spike(spike, mea_dim, time=None, save=False, ax=None, file=None):
     '''
     #  check if number of spike is 1
     if len(spike.shape) == 3:
-        print 'Plot one spike at a time!'
+        print('Plot one spike at a time!')
         return
     else:
         if time:
@@ -1590,6 +1199,7 @@ def mark_subplots(axes, letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ', xpos=0.05, ypos=0.
                       fontsize=fs,
                       transform=ax.transAxes)
 
+
 def simplify_axes(axes):
 
     if not type(axes) is list:
@@ -1600,6 +1210,7 @@ def simplify_axes(axes):
         ax.spines['right'].set_visible(False)
         ax.get_xaxis().tick_bottom()
         ax.get_yaxis().tick_left()
+
 
 def color_axes(axes, clr):
     if not type(axes) is list:

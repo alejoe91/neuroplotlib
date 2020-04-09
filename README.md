@@ -1,2 +1,3 @@
-# NeuroPlot
-Plotting utilites for neurons and Multi-Electrode Arrays
+# Neuroplotlib
+
+Plotting utilites for neurons and LFPy

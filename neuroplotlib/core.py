@@ -16,9 +16,9 @@ except:
 from .utils import get_polygons_for_cylinder
 
 
-def plot_detailed_neuron(cell=None, morphology=None, position=None, rotation=None, plane='yz', ax=None,
-                         alpha=0.8, color='gray', exclude_sections=[], xlim=None, ylim=None, labelsize=15,
-                         **clr_kwargs):
+def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None, 
+                         alpha=0.8, color='gray', exclude_sections=[], xlim=None, ylim=None, zlim=None,
+                         labelsize=15, ax=None, **clr_kwargs):
     '''
     Plots detailed morphology of neuron using pt3d info.
 
@@ -28,23 +28,35 @@ def plot_detailed_neuron(cell=None, morphology=None, position=None, rotation=Non
         The cell object to be plotted
     morphology: str
         The path to a morphology ('.asc', '.swc', '.hoc') in alternative to the 'cell' object
+    plane: str
+        The plane to plot ('xy', 'yz', 'xz', '3d')
     position: np.array
+        3d position to move the neuron
     rotation: np.array
-    plane
-    ax
-    bounds
-    alpha
-    color
-    c_axon
-    c_dend
-    c_soma
-    plot_axon
-    xlim
-    ylim
+        3d rotation for the neuron
+    alpha: float
+        Alpha value
+    color: Matplotlib color
+        The default color
+    exclude_sections: list
+        List of sections to exclude from plotting (they should be substrings of the NEURON sections -- e.g. axon, dend)
+    xlim: tuple
+        x limits (if None, they are automatically adjusted)
+    ylim: tuple
+        y limits (if None, they are automatically adjusted)
+    zlim: tuple
+        z limits (if None, they are automatically adjusted)
+    labelsize: int
+        Label size for axis labels
+    ax: Matplotlib axis
+        The axis to use
+    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the 
+                  available sections (e.g. color_dend='r')
 
     Returns
     -------
-
+    ax: Matplotlib axis
+        The axis with the plotted neuron
     '''
     if cell is None:
         assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
@@ -122,9 +134,23 @@ def plot_detailed_neuron(cell=None, morphology=None, position=None, rotation=Non
             if part not in exclude_sections:
                 _plot_3d_neurites(cell, ax, colors[part], alpha, idxs=idxs[part], pt3d=True)
         gmax = np.max([np.max(np.abs(cell.xmid)), np.abs(np.max(cell.ymid)), np.abs(np.max(cell.zmid))])
-        ax.set_xlim3d(-gmax, gmax)
-        ax.set_ylim3d(-gmax, gmax)
-        ax.set_zlim3d(-gmax, gmax)
+
+        if xlim is None:
+            ax.set_xlim3d(-gmax, gmax)
+        else:
+            ax.set_xlim3d(xlim)
+        if ylim is None:
+            ax.set_ylim3d(-gmax, gmax)
+        else:
+            ax.set_ylim3d(ylim)
+        if zlim is None:
+            ax.set_zlim3d(-gmax, gmax)
+        else:
+            ax.set_zlim3d(zlim)
+
+        ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
+        ax.set_ylabel('y ($\mu$m)', fontsize=labelsize)
+        ax.set_zlabel('z ($\mu$m)', fontsize=labelsize)
     else:
         if plane is 'yz' or plane is 'zy':
             for y, z in cell.get_pt3d_polygons(projection=('y', 'z')):
@@ -181,39 +207,52 @@ def plot_detailed_neuron(cell=None, morphology=None, position=None, rotation=Non
     return ax
 
 
-def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane='yz',
-                fig=None, ax=None, projections3d=False, alpha=0.8, color='k', exclude_sections=[],
-                xlim=None, ylim=None, labelsize=15, lw=1, **clr_kwargs):
+def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None, 
+                projections3d=False, alpha=0.8, color='gray', exclude_sections=[], xlim=None, ylim=None, zlim=None,
+                labelsize=15, lw=1, ax=None, **clr_kwargs):
     '''
+    Plots the morphology of a neuron (without pt3d info).
 
     Parameters
     ----------
-    cell
-    cell_name
-    cell_folder
-    pos
-    rot
-    bounds
-    plane
-    fig
-    ax
-    projections3d
-    alpha
-    color
-    condition
-    c_axon
-    c_dend
-    c_soma
-    plot_axon
-    plot_dend
-    plot_soma
-    xlim
-    ylim
-    somasize
+    cell: LFPy.Cell
+        The cell object to be plotted
+    morphology: str
+        The path to a morphology ('.asc', '.swc', '.hoc') in alternative to the 'cell' object
+    plane: str
+        The plane to plot ('xy', 'yz', 'xz', '3d')
+    position: np.array
+        3d position to move the neuron
+    rotation: np.array
+        3d rotation for the neuron
+    projections3d: bool
+        If True, a figure with 'xy', 'yz', 'xz', and '3d' planes is plotted
+    alpha: float
+        Alpha value
+    color: Matplotlib color
+        The default color
+    exclude_sections: list
+        List of sections to exclude from plotting (they should be substrings of the NEURON sections -- e.g. axon, dend)
+    xlim: tuple
+        x limits (if None, they are automatically adjusted)
+    ylim: tuple
+        y limits (if None, they are automatically adjusted)
+    zlim: tuple
+        z limits (if None, they are automatically adjusted)
+    labelsize: int
+        Label size for axis labels
+    lw: float
+        Line width for neuronal lines
+    ax: Matplotlib axis
+        The axis to use
+    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the 
+                  available sections (e.g. color_dend='r')
 
     Returns
     -------
-
+    ax_or_fig: Matplotlib axis or figure
+        If projection3d is False, the axis with the plotted neuron
+        If projection3d is True, the figure containing the projections
     '''
     if cell is None:
         assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
@@ -269,8 +308,7 @@ def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane=
             colors[part] = color
 
     if projections3d:
-        if fig is None:
-            fig = plt.figure()
+        fig = plt.figure()
         yz = fig.add_subplot(221, aspect=1)
         xy = fig.add_subplot(222, aspect=1)
         xz = fig.add_subplot(223, aspect=1)
@@ -304,6 +342,16 @@ def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane=
         ax_3d.set_ylabel('y ($\mu$m)')
         ax_3d.set_zlabel('z ($\mu$m)')
 
+        if xlim is not None:
+            ax.set_xlim(xlim)
+            ax.set_xlim3d(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+            ax.set_ylim3d(ylim)
+        if zlim is not None:
+            ax.set_zlim(zlim)
+            ax.set_zlim3d(zlim)
+
         return fig
     else:
         if ax is None:
@@ -332,6 +380,7 @@ def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane=
                                 ax.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
                                         color=colors[part], lw=lw,
                                         alpha=alpha, zorder=3)
+
             if plane is 'xy' or plane is 'yx':
                 ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
                 ax.set_ylabel('y ($\mu$m)', fontsize=labelsize)
@@ -348,6 +397,7 @@ def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane=
                 ax.set_ylim(ylim)
             if not xlim and not ylim:
                 ax.axis('equal')
+
         elif plane is '3d':
             for part in parts:
                 if part not in exclude_sections:
@@ -382,23 +432,35 @@ def plot_neuron(cell=None, morphology=None, position=None, rotation=None, plane=
     return ax
 
 
-def plot_cylinder_3d(bottom, direction, length, radius, color='k', alpha=.5, ax=None,
-                     xlim=None, ylim=None, zlim=None):
+def plot_cylinder_3d(bottom, direction, length, radius, color='gray', alpha=.5,
+                     xlim=None, ylim=None, zlim=None, ax=None):
     '''
 
     Parameters
     ----------
-    bottom
-    direction
-    color
-    alpha
-    ax
-    xlim
-    ylim
-    zlim
+    bottom: np.array
+        3d position of the bottom of the cylinder
+    direction: np.array
+        3d direction of the cylinder axis
+    length: float
+        Length of the cylinder
+    radius: float
+        Radius of the cylinder
+    color: Matplotlib color
+        The default color
+    xlim: tuple
+        x limits (if None, they are automatically adjusted)
+    ylim: tuple
+        y limits (if None, they are automatically adjusted)
+    zlim: tuple
+        z limits (if None, they are automatically adjusted)
+    ax: Matplotlib axis
+        The axis to use
 
     Returns
     -------
+    ax: Matplotlib axis
+        The axis with the plotted cylinder
 
     '''
     if ax is None:
@@ -410,18 +472,28 @@ def plot_cylinder_3d(bottom, direction, length, radius, color='k', alpha=.5, ax=
 
     for crt_poly3d in poly3d:
         ax.add_collection3d(crt_poly3d)
+    top = bottom + length * np.array(direction)
+    max_bottom = [np.max(np.abs(bottom[0])), np.abs(np.max(bottom[1])), np.abs(np.max(bottom[2]))]
+    max_top = [np.max(np.abs(top[0])), np.abs(np.max(top[1])), np.abs(np.max(top[2]))]
+    gmax = np.max([max_bottom, max_top])
 
-    if xlim:
+    if xlim is None:
+        ax.set_xlim3d(-gmax, gmax)
+    else:
         ax.set_xlim3d(xlim)
-    if ylim:
-        ax.set_xlim3d(ylim)
-    if zlim:
-        ax.set_xlim3d(zlim)
+    if ylim is None:
+        ax.set_ylim3d(-gmax, gmax)
+    else:
+        ax.set_ylim3d(ylim)
+    if zlim is None:
+        ax.set_zlim3d(-gmax, gmax)
+    else:
+        ax.set_zlim3d(zlim)
 
     return ax
 
 
-def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1):
+def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.):
     if isinstance(idx_soma, list):
         idx = idx_soma[0]
     else:

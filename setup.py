@@ -21,7 +21,7 @@ setup(
     url="https://github.com/alejoe91/neuroplotlib",
     install_requires=[
         'numpy',
-        'matplotlib'
+        'matplotlib',
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

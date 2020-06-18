@@ -31,6 +31,3 @@ cd neuroplotlib
 python setup.py install (or develop) 
 ```
 
-## Basic Usage
-
-

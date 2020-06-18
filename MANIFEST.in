@@ -1,0 +1,5 @@
+include README.md
+include LICENSE
+
+recursive-include morphologies *.hoc
+recursive-include MEArec/cell_models *

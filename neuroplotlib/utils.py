@@ -111,18 +111,18 @@ def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, fa
     verts_hull = []
     for idx_theta, crt_theta in enumerate(theta_ring):
         if idx_theta <= theta_ring.size - 2:
-            x_verts = [x[0][idx_theta],
-                       x[0][idx_theta + 1],
-                       x[0][idx_theta + 1 + theta_ring.size],
-                       x[0][idx_theta + theta_ring.size]]
-            y_verts = [y[0][idx_theta],
-                       y[0][idx_theta + 1],
-                       y[0][idx_theta + 1 + theta_ring.size],
-                       y[0][idx_theta + theta_ring.size]]
-            z_verts = [z[0][idx_theta],
-                       z[0][idx_theta + 1],
-                       z[0][idx_theta + 1 + theta_ring.size],
-                       z[0][idx_theta + theta_ring.size]]
+            x_verts = [x[idx_theta],
+                       x[idx_theta + 1],
+                       x[idx_theta + 1 + theta_ring.size],
+                       x[idx_theta + theta_ring.size]]
+            y_verts = [y[idx_theta],
+                       y[idx_theta + 1],
+                       y[idx_theta + 1 + theta_ring.size],
+                       y[idx_theta + theta_ring.size]]
+            z_verts = [z[idx_theta],
+                       z[idx_theta + 1],
+                       z[idx_theta + 1 + theta_ring.size],
+                       z[idx_theta + theta_ring.size]]
             verts_hull.append(zip(x_verts, y_verts, z_verts))
 
     poly3d_hull = []
@@ -135,9 +135,9 @@ def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, fa
         poly3d_hull.append(cyl)
 
     # draw lower lid
-    x_verts = x[0][0:theta_ring.size - 1]
-    y_verts = y[0][0:theta_ring.size - 1]
-    z_verts = z[0][0:theta_ring.size - 1]
+    x_verts = x[0:theta_ring.size - 1]
+    y_verts = y[0:theta_ring.size - 1]
+    z_verts = z[0:theta_ring.size - 1]
     verts_lowerlid = [list(zip(x_verts, y_verts, z_verts))]
     poly3ed_lowerlid = Poly3DCollection(verts_lowerlid, linewidths=lw, zorder=1)
     poly3ed_lowerlid.set_facecolor(face_col)
@@ -145,9 +145,9 @@ def get_polygons_for_cylinder(pos_start, direction, length, radius, n_points, fa
     poly3ed_lowerlid.set_alpha(alpha)
 
     # draw upper lid
-    x_verts = x[0][theta_ring.size:theta_ring.size * 2 - 1]
-    y_verts = y[0][theta_ring.size:theta_ring.size * 2 - 1]
-    z_verts = z[0][theta_ring.size:theta_ring.size * 2 - 1]
+    x_verts = x[theta_ring.size:theta_ring.size * 2 - 1]
+    y_verts = y[theta_ring.size:theta_ring.size * 2 - 1]
+    z_verts = z[theta_ring.size:theta_ring.size * 2 - 1]
     verts_upperlid = [list(zip(x_verts, y_verts, z_verts))]
     poly3ed_upperlid = Poly3DCollection(verts_upperlid, linewidths=lw, zorder=1)
     poly3ed_upperlid.set_facecolor(face_col)
@@ -285,6 +285,7 @@ def _rotation_matrix_sin(d):
 
 
 def _cylinder(pos_start, direction, length, radius, n_points):
+    # Build cylinder pointing to positive x-direction with right radius and length
     alpha = np.array([0., length])
     theta_ring = np.linspace(0., np.pi * 2., int(n_points))
     r = radius
@@ -294,54 +295,48 @@ def _cylinder(pos_start, direction, length, radius, n_points):
     z = np.zeros((theta_ring.size * alpha.size))
 
     for idx_alpha, crt_alpha in enumerate(alpha):
-        x[idx_alpha * theta_ring.size:
-          (idx_alpha + 1) * theta_ring.size] = \
-            r * np.cos(theta_ring)
-        y[idx_alpha * theta_ring.size:
-          (idx_alpha + 1) * theta_ring.size] = \
-            r * np.sin(theta_ring)
-        z[idx_alpha * theta_ring.size:
-          (idx_alpha + 1) * theta_ring.size] = \
-            crt_alpha * np.ones(theta_ring.size)
+        x[idx_alpha * theta_ring.size:(idx_alpha + 1) * theta_ring.size] = r * np.cos(theta_ring)
+        y[idx_alpha * theta_ring.size:(idx_alpha + 1) * theta_ring.size] = r * np.sin(theta_ring)
+        z[idx_alpha * theta_ring.size:(idx_alpha + 1) * theta_ring.size] = crt_alpha * np.ones(theta_ring.size)
 
-    x = np.atleast_2d(x)
-    y = np.atleast_2d(y)
-    z = np.atleast_2d(z)
+    # rotate cylinder to match direction
+    #
+    # - rho: length of vector projection on x-y plane
+    # - phy: angle of rotation wrt y-axis
+    # - theta: angle of rotation wrt z-axis
 
-    d = direction
+    y_axis = np.array([0., 1., 0.])
+    z_axis = np.array([0., 0., 1.])
 
-    # rot1, phi
-    r_1 = np.array([0., 1., 0.])
-    # rot2, theta
-    r_2 = np.array([0., 0., 1.])
-
-    # fix negative angles
-    if d[0] == 0:
-        theta = -np.sign(d[1]) * np.pi / 2.
+    if direction[0] == 0:
+        theta = -np.sign(direction[1]) * np.pi / 2.
     else:
-        if d[0] > 0:
-            theta = -np.arctan(d[1] / d[0])
+        if direction[0] > 0:
+            theta = -np.arctan(direction[1] / direction[0])
         else:
-            theta = np.pi - np.arctan(d[1] / d[0])
+            theta = np.pi - np.arctan(direction[1] / direction[0])
 
-    rho = np.sqrt((d[0] ** 2 + d[1] ** 2))
-
+    rho = np.sqrt((direction[0] ** 2 + direction[1] ** 2))
     if rho == 0:
-        phi = 0.
+        if direction[2] > 0:
+            phi = 0.
+        else:
+            phi = np.pi
     else:
-        phi = -(np.pi / 2. - np.arctan(d[2] / rho))
+        phi = -(np.pi / 2. - np.arctan(direction[2] / rho))
 
-    rot1_m = _rotation_matrix(r_1, phi)
-    rot2_m = _rotation_matrix(r_2, theta)
+    rot1_m = _rotation_matrix(y_axis, phi)
+    rot2_m = _rotation_matrix(z_axis, theta)
 
-    for idx, (crt_x, crt_y, crt_z) in enumerate(zip(x[0], y[0], z[0])):
+    for idx, (crt_x, crt_y, crt_z) in enumerate(zip(x, y, z)):
         crt_v = np.array([crt_x, crt_y, crt_z])
         crt_v = np.dot(crt_v, rot1_m)
         crt_v = np.dot(crt_v, rot2_m)
-        x[0][idx] = crt_v[0]
-        y[0][idx] = crt_v[1]
-        z[0][idx] = crt_v[2]
+        x[idx] = crt_v[0]
+        y[idx] = crt_v[1]
+        z[idx] = crt_v[2]
 
+    # move cylinder to start position
     x += pos_start[0]
     y += pos_start[1]
     z += pos_start[2]

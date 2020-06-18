@@ -250,9 +250,10 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
 
     Returns
     -------
-    ax_or_fig: Matplotlib axis or figure
+    ax: Matplotlib axis
         If projection3d is False, the axis with the plotted neuron
-        If projection3d is True, the figure containing the projections
+    fig, axes:  Matplotlib figure and list of axis
+        If projection3d is True, the figure containing the projections and the list of axis (yz, xy, xz, 3d)
     '''
     if cell is None:
         assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
@@ -324,13 +325,13 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
                 else:
                     for idx in idxs[part]:
                         xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
-                                color=colors[part])
+                                color=colors[part], alpha=alpha)
                         yz.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]],
-                                color=colors[part])
+                                color=colors[part], alpha=alpha)
                         xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
-                                color=colors[part])
+                                color=colors[part], alpha=alpha)
                         ax_3d.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
-                                   [cell.zstart[idx], cell.zend[idx]], color=colors[part])
+                                   [cell.zstart[idx], cell.zend[idx]], color=colors[part], alpha=alpha)
 
         yz.set_xlabel('y ($\mu$m)')
         yz.set_ylabel('z ($\mu$m)')
@@ -343,16 +344,19 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         ax_3d.set_zlabel('z ($\mu$m)')
 
         if xlim is not None:
-            ax.set_xlim(xlim)
-            ax.set_xlim3d(xlim)
+            xy.set_xlim(xlim)
+            xz.set_xlim(xlim)
+            ax_3d.set_xlim3d(xlim)
         if ylim is not None:
-            ax.set_ylim(ylim)
-            ax.set_ylim3d(ylim)
+            xy.set_ylim(ylim)
+            yz.set_xlim(ylim)
+            ax_3d.set_ylim3d(ylim)
         if zlim is not None:
-            ax.set_zlim(zlim)
-            ax.set_zlim3d(zlim)
+            xz.set_ylim(zlim)
+            yz.set_ylim(zlim)
+            ax_3d.set_zlim3d(zlim)
 
-        return fig
+        return fig, [yz, xy, xz, ax_3d]
     else:
         if ax is None:
             fig = plt.figure()
@@ -534,40 +538,46 @@ def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.):
 def _plot_3d_neurites(cell, ax, color, alpha, idxs=None, pt3d=False):
     if idxs is None:
         idxs = cell.get_idx()
+
     if pt3d and cell.pt3d:
-        for ii in range(len(cell.x3d)):
-            for jj in range(len(cell.x3d[ii]) - 1):
-                closest_idx = cell.get_closest_idx(cell.x3d[ii][jj], cell.y3d[ii][jj], cell.z3d[ii][jj])
+        for idx in range(len(cell.x3d)):
+            for jj in range(len(cell.x3d[idx]) - 1):
+                midpoint = [cell.x3d[idx][jj] + cell.x3d[idx][jj + 1] - cell.x3d[idx][jj],
+                            cell.y3d[idx][jj] + cell.y3d[idx][jj + 1] - cell.y3d[idx][jj],
+                            cell.z3d[idx][jj] + cell.z3d[idx][jj + 1] - cell.z3d[idx][jj]]
+                closest_idx = cell.get_closest_idx(midpoint[0], midpoint[1], midpoint[2])
                 if closest_idx in idxs:
-                    init = np.array([cell.x3d[ii][jj], cell.y3d[ii][jj], cell.z3d[ii][jj]])
-                    end = np.array([cell.x3d[ii][jj + 1], cell.y3d[ii][jj + 1], cell.z3d[ii][jj + 1]])
-                    dir_seg = (end - init) / np.linalg.norm(end - init)
+                    init = np.array([cell.x3d[idx][jj], cell.y3d[idx][jj], cell.z3d[idx][jj]])
+                    end = np.array([cell.x3d[idx][jj + 1], cell.y3d[idx][jj + 1], cell.z3d[idx][jj + 1]])
                     len_seg = np.linalg.norm(end - init)
-                    n_points = 10.
-                    neur_poly3d = get_polygons_for_cylinder(init,
-                                                            direction=dir_seg,
-                                                            length=len_seg,
-                                                            radius=cell.diam3d[ii][jj] / 2,
-                                                            n_points=n_points,
-                                                            facecolor=color,
-                                                            edgecolor=color,
-                                                            lw=0.5,
-                                                            alpha=alpha)
-                    for crt_poly3d in neur_poly3d:
-                        ax.add_collection3d(crt_poly3d)
+                    if len_seg > 0:
+                        dir_seg = (end - init) / len_seg
+                        n_points = 10
+                        neur_poly3d = get_polygons_for_cylinder(init,
+                                                                direction=dir_seg,
+                                                                length=len_seg,
+                                                                radius=cell.diam3d[idx][jj] / 2,
+                                                                n_points=n_points,
+                                                                facecolor=color,
+                                                                edgecolor=color,
+                                                                lw=0.5,
+                                                                alpha=alpha)
+                        for crt_poly3d in neur_poly3d:
+                            ax.add_collection3d(crt_poly3d)
     else:
         for idx in idxs:
             init = np.array([cell.xstart[idx], cell.ystart[idx], cell.zstart[idx]])
             end = np.array([cell.xend[idx], cell.yend[idx], cell.zend[idx]])
-            dir_seg = (end - init) / np.linalg.norm(end - init)
             len_seg = np.linalg.norm(end - init)
-            n_points = 10.
-            neur_poly3d = get_polygons_for_cylinder(init,
-                                                    direction=dir_seg,
-                                                    length=len_seg,
-                                                    radius=cell.diam[idx] / 2,
-                                                    n_points=n_points,
-                                                    facecolor=color,
-                                                    alpha=alpha)
-    for crt_poly3d in neur_poly3d:
-        ax.add_collection3d(crt_poly3d)
+            if len_seg > 0:
+                dir_seg = (end - init) / len_seg
+                n_points = 10
+                neur_poly3d = get_polygons_for_cylinder(init,
+                                                        direction=dir_seg,
+                                                        length=len_seg,
+                                                        radius=cell.diam[idx] / 2,
+                                                        n_points=n_points,
+                                                        facecolor=color,
+                                                        alpha=alpha)
+                for crt_poly3d in neur_poly3d:
+                    ax.add_collection3d(crt_poly3d)

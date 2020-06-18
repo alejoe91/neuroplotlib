@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/alejoe91/neuroplotlib.svg?branch=master)](https://travis-ci.org/alejoe91/neuroplotlib) [![PyPI version](https://badge.fury.io/py/neuroplotlib.svg)](https://badge.fury.io/py/neuroplotlib)
+
 # Neuroplotlib
 
 `neuroplotlib` is a Python package for plotting neuron models in [LFPy](https://github.com/LFPy/LFPy).

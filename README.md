@@ -31,3 +31,6 @@ cd neuroplotlib
 python setup.py install (or develop) 
 ```
 
+## Usage
+
+Check out this [notebook](https://github.com/alejoe91/neuroplotlib/blob/master/notebooks/neuroplotlib_gallery.ipynb) for a gallery of `neuroplotlib` features.

@@ -12,7 +12,7 @@ addons:
     - gfortran
 install:
 - pip install matplotlib
-- pip install LFPy>=2.2rc3
+- pip install 'LFPy >= 2.2rc3'
 - pip install .
 - pip install pytest
 script: pytest

@@ -1,4 +1,3 @@
-import os
 import neuroplotlib as nplt
 import LFPy
 from pathlib import Path
@@ -29,6 +28,8 @@ def test_plot_neuron():
     ax = nplt.plot_neuron(morphology=hall_morphology, plane='xy',
                           color_soma='C0', color_dend='C1', color_apic='C2', color='black')
 
+    hay_cell.__del__()  # avoid potential crashes due to hanging hoc refs
+
 
 def test_plot_detailed_neuron():
     ax_xyd = nplt.plot_detailed_neuron(morphology=hall_morphology, plane='xy')
@@ -46,6 +47,8 @@ def test_plot_detailed_neuron():
     ax = nplt.plot_detailed_neuron(morphology=hall_morphology, plane='xy', xlim=[-50, 50], ylim=[-50, 200])
     ax = nplt.plot_detailed_neuron(morphology=hall_morphology, plane='xy',
                                    color_soma='C0', color_dend='C1', color_apic='C2', color='black')
+
+    hall_cell.__del__()  # avoid potential crashes due to hanging hoc refs
 
 
 def test_plot_3d_cylinder():

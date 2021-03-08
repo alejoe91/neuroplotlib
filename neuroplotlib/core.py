@@ -11,12 +11,12 @@ except:
 try:
     import neuron
 except:
-    raise ImportError("'neuron' not installed. Install it from https://www.neuron.yale.edu/neuron/download")
+    raise ImportError("'neuron' not installed. Install it with 'pip install neuron'")
 
 from .utils import get_polygons_for_cylinder
 
 
-def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None, 
+def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None,
                          alpha=0.8, color='gray', exclude_sections=[], xlim=None, ylim=None, zlim=None,
                          labelsize=15, ax=None, **clr_kwargs):
     '''
@@ -50,7 +50,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
         Label size for axis labels
     ax: Matplotlib axis
         The axis to use
-    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the 
+    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the
                   available sections (e.g. color_dend='r')
 
     Returns
@@ -59,19 +59,19 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
         The axis with the plotted neuron
     '''
     if cell is None:
-        assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
+        assert morphology != None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
         cell = LFPy.Cell(morphology=morphology, pt3d=True)
     elif type(cell) is not LFPy.TemplateCell and type(cell) is not LFPy.Cell:
         raise AttributeError('Either a Cell object or the cell name and location should be passed as parameters')
 
-    if position is not None:
+    if position != None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
             original_position = cell.somapos
             cell.set_pos(position[0], position[1], position[2])
 
-    if rotation is not None:
+    if rotation != None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -79,7 +79,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
 
     if ax is None:
         fig = plt.figure()
-        if plane is not '3d':
+        if plane != '3d':
             ax = fig.add_subplot(111)
         else:
             ax = fig.add_subplot(111, projection='3d')
@@ -129,11 +129,13 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
             colors[part] = color
 
     zips = []
-    if plane is '3d':
+    if plane == '3d':
         for part in parts:
             if part not in exclude_sections:
                 _plot_3d_neurites(cell, ax, colors[part], alpha, idxs=idxs[part], pt3d=True)
-        gmax = np.max([np.max(np.abs(cell.xmid)), np.abs(np.max(cell.ymid)), np.abs(np.max(cell.zmid))])
+        gmax = np.max([np.max(np.abs(cell.x.mean(axis=-1))),
+                       np.abs(np.max(cell.y.mean(axis=-1))),
+                       np.abs(np.max(cell.z.mean(axis=-1)))])
 
         if xlim is None:
             ax.set_xlim3d(-gmax, gmax)
@@ -152,14 +154,14 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
         ax.set_ylabel('y ($\mu$m)', fontsize=labelsize)
         ax.set_zlabel('z ($\mu$m)', fontsize=labelsize)
     else:
-        if plane is 'yz' or plane is 'zy':
+        if plane == 'yz' or plane == 'zy':
             for y, z in cell.get_pt3d_polygons(projection=('y', 'z')):
                 zips.append(zip(y, z))
-        elif plane is 'xz' or plane is 'zx':
+        elif plane == 'xz' or plane == 'zx':
             for x, z in cell.get_pt3d_polygons(projection=('x', 'z')):
                 zips.append(zip(x, z))
 
-        elif plane is 'xy' or plane is 'yx':
+        elif plane == 'xy' or plane == 'yx':
             for x, y in cell.get_pt3d_polygons(projection=('x', 'y')):
                 zips.append(zip(x, y))
 
@@ -172,13 +174,13 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
                                          alpha=alpha)
                 ax.add_collection(polycol)
 
-        if plane is 'xy' or plane is 'yx':
+        if plane == 'xy' or plane == 'yx':
             ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
             ax.set_ylabel('y ($\mu$m)', fontsize=labelsize)
-        elif plane is 'yz' or plane is 'zy':
+        elif plane == 'yz' or plane == 'zy':
             ax.set_xlabel('y ($\mu$m)', fontsize=labelsize)
             ax.set_ylabel('z ($\mu$m)', fontsize=labelsize)
-        elif plane is 'xz' or plane is 'zx':
+        elif plane == 'xz' or plane == 'zx':
             ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
             ax.set_ylabel('z ($\mu$m)', fontsize=labelsize)
 
@@ -190,7 +192,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
             ax.axis('equal')
 
     # revert rotation and position
-    if rotation is not None:
+    if rotation != None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -198,7 +200,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
             cell.set_rotation(0, -rotation[1], 0)
             cell.set_rotation(-rotation[0], 0, 0)
 
-    if position is not None:
+    if position != None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
@@ -207,7 +209,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
     return ax
 
 
-def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None, 
+def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=None,
                 projections3d=False, alpha=0.8, color='gray', exclude_sections=[], xlim=None, ylim=None, zlim=None,
                 labelsize=15, lw=1, ax=None, **clr_kwargs):
     '''
@@ -245,7 +247,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         Line width for neuronal lines
     ax: Matplotlib axis
         The axis to use
-    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the 
+    **clr_kwargs: color keyword arguments. The are in the form of "color_*section*", where *section* is one of the
                   available sections (e.g. color_dend='r')
 
     Returns
@@ -256,18 +258,18 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         If projection3d is True, the figure containing the projections and the list of axis (yz, xy, xz, 3d)
     '''
     if cell is None:
-        assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
+        assert morphology != None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
         cell = LFPy.Cell(morphology=morphology, pt3d=True)
     elif type(cell) is not LFPy.TemplateCell and type(cell) is not LFPy.Cell:
         raise AttributeError('Either a Cell object or the cell name and location should be passed as parameters')
 
-    if position is not None:
+    if position != None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
             original_position = cell.somapos
             cell.set_pos(position[0], position[1], position[2])
-    if rotation is not None:
+    if rotation != None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -324,14 +326,14 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
                     _plot_3d_neurites(cell, ax_3d, color=colors[part], alpha=alpha, idxs=idxs[part], pt3d=True)
                 else:
                     for idx in idxs[part]:
-                        xy.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
+                        xy.plot(cell.x[idx, :], cell.y[idx, :],
                                 color=colors[part], alpha=alpha)
-                        yz.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                        yz.plot(cell.y[idx, :], cell.z[idx, :],
                                 color=colors[part], alpha=alpha)
-                        xz.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                        xz.plot(cell.x[idx, :], cell.z[idx, :],
                                 color=colors[part], alpha=alpha)
-                        ax_3d.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
-                                   [cell.zstart[idx], cell.zend[idx]], color=colors[part], alpha=alpha)
+                        ax_3d.plot(cell.x[idx, :], cell.y[idx, :],
+                                   cell.z[idx, :], color=colors[part], alpha=alpha)
 
         yz.set_xlabel('y ($\mu$m)')
         yz.set_ylabel('z ($\mu$m)')
@@ -343,15 +345,15 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         ax_3d.set_ylabel('y ($\mu$m)')
         ax_3d.set_zlabel('z ($\mu$m)')
 
-        if xlim is not None:
+        if xlim != None:
             xy.set_xlim(xlim)
             xz.set_xlim(xlim)
             ax_3d.set_xlim3d(xlim)
-        if ylim is not None:
+        if ylim != None:
             xy.set_ylim(ylim)
             yz.set_xlim(ylim)
             ax_3d.set_ylim3d(ylim)
-        if zlim is not None:
+        if zlim != None:
             xz.set_ylim(zlim)
             yz.set_ylim(zlim)
             ax_3d.set_zlim3d(zlim)
@@ -360,38 +362,38 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
     else:
         if ax is None:
             fig = plt.figure()
-            if plane is not '3d':
+            if plane != '3d':
                 ax = fig.add_subplot(111, aspect=1)
             else:
                 ax = fig.add_subplot(111, projection='3d')
 
-        if plane is not '3d':
+        if plane != '3d':
             for part in parts:
                 if part not in exclude_sections:
                     if 'soma' in part:
                         _plot_soma_ellipse(cell, idxs[part], plane, ax, color_soma=colors[part], alpha=alpha)
                     else:
                         for idx in idxs[part]:
-                            if plane is 'xy' or plane is 'yx':
-                                ax.plot([cell.xstart[idx], cell.xend[idx]], [cell.ystart[idx], cell.yend[idx]],
+                            if plane == 'xy' or plane == 'yx':
+                                ax.plot(cell.x[idx, :], cell.y[idx, :],
                                         color=colors[part], lw=lw,
                                         alpha=alpha, zorder=3)
-                            elif plane is 'yz' or plane is 'zy':
-                                ax.plot([cell.ystart[idx], cell.yend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                            elif plane == 'yz' or plane == 'zy':
+                                ax.plot(cell.y[idx, :], cell.z[idx, :],
                                         color=colors[part], lw=lw,
                                         alpha=alpha, zorder=3)
-                            elif plane is 'xz' or plane is 'zx':
-                                ax.plot([cell.xstart[idx], cell.xend[idx]], [cell.zstart[idx], cell.zend[idx]],
+                            elif plane == 'xz' or plane == 'zx':
+                                ax.plot(cell.x[idx, :], cell.z[idx, :],
                                         color=colors[part], lw=lw,
                                         alpha=alpha, zorder=3)
 
-            if plane is 'xy' or plane is 'yx':
+            if plane == 'xy' or plane == 'yx':
                 ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
                 ax.set_ylabel('y ($\mu$m)', fontsize=labelsize)
-            elif plane is 'yz' or plane is 'zy':
+            elif plane == 'yz' or plane == 'zy':
                 ax.set_xlabel('y ($\mu$m)', fontsize=labelsize)
                 ax.set_ylabel('z ($\mu$m)', fontsize=labelsize)
-            elif plane is 'xz' or plane is 'zx':
+            elif plane == 'xz' or plane == 'zx':
                 ax.set_xlabel('x ($\mu$m)', fontsize=labelsize)
                 ax.set_ylabel('z ($\mu$m)', fontsize=labelsize)
 
@@ -402,7 +404,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
             if not xlim and not ylim:
                 ax.axis('equal')
 
-        elif plane is '3d':
+        elif plane == '3d':
             for part in parts:
                 if part not in exclude_sections:
                     if 'soma' in part:
@@ -412,14 +414,14 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
             ax.set_xlabel('x ($\mu$m)')
             ax.set_ylabel('y ($\mu$m)')
             ax.set_zlabel('z ($\mu$m)')
-            ax.set_xlim3d(np.min(cell.xmid), np.max(cell.xmid))
-            ax.set_ylim3d(np.min(cell.ymid), np.max(cell.ymid))
-            ax.set_zlim3d(np.min(cell.zmid), np.max(cell.zmid))
+            ax.set_xlim3d(np.min(cell.x.mean(axis=-1)), np.max(cell.x.mean(axis=-1)))
+            ax.set_ylim3d(np.min(cell.y.mean(axis=-1)), np.max(cell.y.mean(axis=-1)))
+            ax.set_zlim3d(np.min(cell.z.mean(axis=-1)), np.max(cell.z.mean(axis=-1)))
         else:
             raise ValueError("Invalid 'plane'. It can be 'xy', 'yz', 'xz', or '3d'")
 
     # revert rotation and position
-    if rotation is not None:
+    if rotation != None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -427,7 +429,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
             cell.set_rotation(0, -rotation[1], 0)
             cell.set_rotation(-rotation[0], 0, 0)
 
-    if position is not None:
+    if position != None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
@@ -502,25 +504,25 @@ def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.):
         idx = idx_soma[0]
     else:
         idx = idx_soma
-    width = cell.diam[idx]
+    width = cell.d[idx]
     if plane == 'xy':
-        height = np.sqrt((cell.zend[idx] - cell.zstart[idx]) ** 2 + (cell.yend[idx] - cell.ystart[idx]) ** 2)
-        if cell.xend[idx] - cell.xstart[idx] != 0:
-            angle = np.rad2deg((cell.yend[idx] - cell.ystart[idx]) / (cell.xend[idx] - cell.xstart[idx]))
+        height = np.sqrt((np.diff(cell.z[idx, :])) ** 2 + (np.diff(cell.y[idx, :])) ** 2)
+        if np.diff(cell.x[idx, :]) != 0:
+            angle = np.rad2deg((np.diff(cell.y[idx, :])) / (np.diff(cell.x[idx, :])))
         else:
             angle = 90
         xy = [cell.somapos[idx], cell.somapos[1]]
     elif plane == 'yz':
-        height = np.sqrt((cell.yend[idx] - cell.ystart[idx]) ** 2 + (cell.zend[idx] - cell.zstart[idx]) ** 2)
-        if cell.yend[idx] - cell.ystart[idx] != 0:
-            angle = np.rad2deg((cell.zend[idx] - cell.zstart[idx]) / (cell.yend[idx] - cell.ystart[idx]))
+        height = np.sqrt((np.diff(cell.y[idx, :])) ** 2 + (np.diff(cell.z[idx, :])) ** 2)
+        if np.diff(cell.y[idx, :]) != 0:
+            angle = np.rad2deg((np.diff(cell.z[idx, :])) / (np.diff(cell.y[idx, :])))
         else:
             angle = 90
         xy = [cell.somapos[1], cell.somapos[2]]
     elif plane == 'xz':
-        height = np.sqrt((cell.xend[idx] - cell.xstart[idx]) ** 2 + (cell.zend[idx] - cell.zstart[idx]) ** 2)
-        if cell.xend[idx] - cell.xstart[idx] != 0:
-            angle = np.rad2deg((cell.zend[idx] - cell.zstart[idx]) / (cell.xend[idx] - cell.xstart[idx]))
+        height = np.sqrt((np.diff(cell.x[idx, :])) ** 2 + (np.diff(cell.z[idx, :])) ** 2)
+        if np.diff(cell.x[idx, :]) != 0:
+            angle = np.rad2deg((np.diff(cell.z[idx, :])) / (np.diff(cell.x[idx, :])))
         else:
             angle = 90
         xy = [cell.somapos[0], cell.somapos[2]]
@@ -566,8 +568,8 @@ def _plot_3d_neurites(cell, ax, color, alpha, idxs=None, pt3d=False):
                             ax.add_collection3d(crt_poly3d)
     else:
         for idx in idxs:
-            init = np.array([cell.xstart[idx], cell.ystart[idx], cell.zstart[idx]])
-            end = np.array([cell.xend[idx], cell.yend[idx], cell.zend[idx]])
+            init = np.array([cell.x[idx, 0], cell.y[idx, 0], cell.z[idx, 0]])
+            end = np.array([cell.x[idx, -1], cell.y[idx, -1], cell.z[idx, -1]])
             len_seg = np.linalg.norm(end - init)
             if len_seg > 0:
                 dir_seg = (end - init) / len_seg
@@ -575,7 +577,7 @@ def _plot_3d_neurites(cell, ax, color, alpha, idxs=None, pt3d=False):
                 neur_poly3d = get_polygons_for_cylinder(init,
                                                         direction=dir_seg,
                                                         length=len_seg,
-                                                        radius=cell.diam[idx] / 2,
+                                                        radius=cell.d[idx] / 2,
                                                         n_points=n_points,
                                                         facecolor=color,
                                                         alpha=alpha)

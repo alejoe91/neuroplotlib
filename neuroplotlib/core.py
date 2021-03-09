@@ -2,11 +2,15 @@ import numpy as np
 import matplotlib.pylab as plt
 from matplotlib.patches import Ellipse
 from matplotlib.collections import PolyCollection
+from distutils.version import StrictVersion
 
 try:
     import LFPy
+    if StrictVersion(LFPy.__version__) < "2.2.0":
+        raise ImportError
 except:
-    raise ImportError("'LFPy' not installed. Install it with 'pip install LFPy'")
+    raise ImportError("'LFPy' not installed or not updated (required version >=2.2). "
+                      "Install it with 'pip install LFPy>=2.2'")
 
 try:
     import neuron
@@ -204,7 +208,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
         if len(position) != 3:
             print('Input a single position at a time')
         else:
-            cell.set_position(original_position[0], original_position[1], original_position[2])
+            cell.set_pos(original_position[0], original_position[1], original_position[2])
 
     return ax
 
@@ -433,7 +437,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         if len(position) != 3:
             print('Input a single position at a time')
         else:
-            cell.set_position(original_position[0], original_position[1], original_position[2])
+            cell.set_pos(original_position[0], original_position[1], original_position[2])
 
     return ax
 

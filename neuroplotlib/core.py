@@ -177,7 +177,6 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
 
         for part in parts:
             if part not in exclude_sections:
-                print(part, colors[part])
                 polygons = [list(zips[i]) for i in idxs_3d[part]]
                 polycol = PolyCollection(polygons,
                                          edgecolors='none',

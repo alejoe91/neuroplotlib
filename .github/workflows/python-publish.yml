@@ -31,7 +31,7 @@ jobs:
           pip install .
           pip install setuptools wheel twine
           pip install pytest
-      - name: Test with pytest and build coverage report
+      - name: Test with pytest
         run: |
           pytest
       - name: Publish on PyPI

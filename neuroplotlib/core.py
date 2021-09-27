@@ -63,19 +63,19 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
         The axis with the plotted neuron
     '''
     if cell is None:
-        assert morphology != None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
+        assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
         cell = LFPy.Cell(morphology=morphology, pt3d=True)
     elif type(cell) is not LFPy.TemplateCell and type(cell) is not LFPy.Cell:
         raise AttributeError('Either a Cell object or the cell name and location should be passed as parameters')
 
-    if position != None:
+    if position is not None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
             original_position = cell.somapos
             cell.set_pos(position[0], position[1], position[2])
 
-    if rotation != None:
+    if rotation is not None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -111,8 +111,14 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
     # assign idxs to neuron parts
     for idx in cell.get_idx():
         for part in parts:
-            secname = cell.get_idx_name(idx)[1]
-            if part in secname:
+            sec_name = cell.get_idx_name(idx)[1]
+            if '.' in sec_name:
+                sec_name = sec_name.split('.')[1]
+
+            # take care of multiple sections in the same neuronal part
+            if '[' in sec_name:
+                sec_name = sec_name.split('[')[0]
+            if part in sec_name:
                 idxs[part].append(idx)
                 break
 
@@ -196,7 +202,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
             ax.axis('equal')
 
     # revert rotation and position
-    if rotation != None:
+    if rotation is not None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -204,7 +210,7 @@ def plot_detailed_neuron(cell=None, morphology=None, plane='yz', position=None, 
             cell.set_rotation(0, -rotation[1], 0)
             cell.set_rotation(-rotation[0], 0, 0)
 
-    if position != None:
+    if position is not None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
@@ -262,18 +268,18 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         If projection3d is True, the figure containing the projections and the list of axis (yz, xy, xz, 3d)
     '''
     if cell is None:
-        assert morphology != None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
+        assert morphology is not None, "Provide 'cell' (LFPy.Cell) or a morphology file ('.hoc', '.asc', '.swc')"
         cell = LFPy.Cell(morphology=morphology, pt3d=True)
     elif type(cell) is not LFPy.TemplateCell and type(cell) is not LFPy.Cell:
         raise AttributeError('Either a Cell object or the cell name and location should be passed as parameters')
 
-    if position != None:
+    if position is not None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
             original_position = cell.somapos
             cell.set_pos(position[0], position[1], position[2])
-    if rotation != None:
+    if rotation is not None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -302,8 +308,14 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
     # assign idxs to neuron parts
     for idx in cell.get_idx():
         for part in parts:
-            secname = cell.get_idx_name(idx)[1]
-            if part in secname:
+            sec_name = cell.get_idx_name(idx)[1]
+            if '.' in sec_name:
+                sec_name = sec_name.split('.')[1]
+
+            # take care of multiple sections in the same neuronal part
+            if '[' in sec_name:
+                sec_name = sec_name.split('[')[0]
+            if part in sec_name:
                 idxs[part].append(idx)
                 break
 
@@ -349,15 +361,15 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
         ax_3d.set_ylabel('y ($\mu$m)')
         ax_3d.set_zlabel('z ($\mu$m)')
 
-        if xlim != None:
+        if xlim is not None:
             xy.set_xlim(xlim)
             xz.set_xlim(xlim)
             ax_3d.set_xlim3d(xlim)
-        if ylim != None:
+        if ylim is not None:
             xy.set_ylim(ylim)
             yz.set_xlim(ylim)
             ax_3d.set_ylim3d(ylim)
-        if zlim != None:
+        if zlim is not None:
             xz.set_ylim(zlim)
             yz.set_ylim(zlim)
             ax_3d.set_zlim3d(zlim)
@@ -425,7 +437,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
             raise ValueError("Invalid 'plane'. It can be 'xy', 'yz', 'xz', or '3d'")
 
     # revert rotation and position
-    if rotation != None:
+    if rotation is not None:
         if len(rotation) != 3:
             print('Input a single rotation at a time')
         else:
@@ -433,7 +445,7 @@ def plot_neuron(cell=None, morphology=None, plane='yz', position=None, rotation=
             cell.set_rotation(0, -rotation[1], 0)
             cell.set_rotation(-rotation[0], 0, 0)
 
-    if position != None:
+    if position is not None:
         if len(position) != 3:
             print('Input a single position at a time')
         else:
@@ -503,7 +515,8 @@ def plot_cylinder_3d(bottom, direction, length, radius, color='gray', alpha=.5,
     return ax
 
 
-def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.):
+def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.,
+                       as_circle=True):
     if isinstance(idx_soma, list):
         idx = idx_soma[0]
     else:
@@ -530,6 +543,10 @@ def _plot_soma_ellipse(cell, idx_soma, plane, ax, color_soma, alpha=1.):
         else:
             angle = 90
         xy = [cell.somapos[0], cell.somapos[2]]
+
+    if as_circle:
+        height = width
+        angle = 0
 
     e = Ellipse(xy=xy,
                 width=width,
